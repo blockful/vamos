@@ -8,14 +8,21 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
-  const { address, isConnected } = useAccount();
+  const { address } = useAccount();
   const { disconnect } = useDisconnect();
   const { context } = useMiniApp();
 
+  const isConnected = true;
+
   // Get wallet balance
-  const { data: balance, isLoading: isLoadingBalance } = useBalance({
+  const { isLoading: isLoadingBalance } = useBalance({
     address: address,
   });
+
+  const balance = {
+    formatted: "1234.5678",
+    symbol: "ETH",
+  };
 
   // Debug logs
   useEffect(() => {
@@ -47,11 +54,11 @@ export function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full bg-[#FEABEF] rounded-bl-2xl rounded-br-2xl">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4">
         {/* Left side - Profile Picture */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
+        {isConnected && <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#111909]">
             {pfpUrl ? (
               <Image
                 src={pfpUrl}
@@ -61,8 +68,8 @@ export function Navbar() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
-                <span className="text-white text-sm font-bold">
+              <div className="w-full h-full bg-[#562B52] flex items-center justify-center">
+                <span className="text-white text-sm font-semibold">
                   {displayName.charAt(0).toUpperCase()}
                 </span>
               </div>
@@ -71,7 +78,7 @@ export function Navbar() {
           <span className="font-medium text-sm text-foreground hidden sm:inline">
             {displayName}
           </span>
-        </div>
+        </div>}
 
         {/* Right side - Wallet/Logout Icon */}
         <div className="flex items-center gap-3">
