@@ -1,7 +1,17 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { useState } from "react";
-import Image from "next/image";
+import { useFormik } from "formik";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 // Mock data for markets
 const MOCK_MARKETS = [
@@ -32,13 +42,34 @@ const MOCK_MARKETS = [
 ];
 
 export default function Markets() {
-  const { context, isMiniAppReady } = useMiniApp();
-  const [markets] = useState(MOCK_MARKETS);
+  const { isMiniAppReady } = useMiniApp();
+  const [markets, setMarkets] = useState(MOCK_MARKETS);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Extract user data from context
-  const user = context?.user;
-  const displayName = user?.displayName || user?.username || "User";
-  const pfpUrl = user?.pfpUrl;
+  // Formik form
+  const formik = useFormik({
+    initialValues: {
+      title: "",
+      description: "",
+      judge: "",
+      optionA: "",
+      optionB: "",
+    },
+    onSubmit: (values) => {
+      // Add new market to the list
+      const newMarket = {
+        id: markets.length + 1,
+        title: values.title,
+        options: [
+          { name: values.optionA, percentage: 50 },
+          { name: values.optionB, percentage: 50 },
+        ],
+      };
+      setMarkets([...markets, newMarket]);
+      setIsModalOpen(false);
+      formik.resetForm();
+    },
+  });
 
   if (!isMiniAppReady) {
     return (
@@ -108,10 +139,7 @@ export default function Markets() {
       {/* Floating Add Button */}
       <button
         className="fixed bottom-8 right-8 w-16 h-16 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 z-50"
-        onClick={() => {
-          // TODO: Implement add new market functionality
-          console.log("Add new market");
-        }}
+        onClick={() => setIsModalOpen(true)}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -128,6 +156,100 @@ export default function Markets() {
           />
         </svg>
       </button>
+
+      {/* Create Market Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Create bet</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={formik.handleSubmit} className="space-y-6 mt-6">
+            {/* Title */}
+            <div className="space-y-2">
+              <Label htmlFor="title" className="text-sm font-medium">
+                Title
+              </Label>
+              <Input
+                id="title"
+                name="title"
+                placeholder="Enter market title"
+                value={formik.values.title}
+                onChange={formik.handleChange}
+                className="w-full"
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-sm font-medium">
+                Description
+              </Label>
+              <Textarea
+                id="description"
+                name="description"
+                placeholder="Enter market description"
+                value={formik.values.description}
+                onChange={formik.handleChange}
+                className="w-full min-h-[100px]"
+              />
+            </div>
+
+            {/* Judge */}
+            <div className="space-y-2">
+              <Label htmlFor="judge" className="text-sm font-medium">
+                Judge
+              </Label>
+              <Input
+                id="judge"
+                name="judge"
+                placeholder="Enter judge name or address"
+                value={formik.values.judge}
+                onChange={formik.handleChange}
+                className="w-full"
+              />
+            </div>
+
+            {/* Option A */}
+            <div className="space-y-2">
+              <Label htmlFor="optionA" className="text-sm font-medium">
+                Option A
+              </Label>
+              <Input
+                id="optionA"
+                name="optionA"
+                placeholder="Enter first option"
+                value={formik.values.optionA}
+                onChange={formik.handleChange}
+                className="w-full"
+              />
+            </div>
+
+            {/* Option B */}
+            <div className="space-y-2">
+              <Label htmlFor="optionB" className="text-sm font-medium">
+                Option B
+              </Label>
+              <Input
+                id="optionB"
+                name="optionB"
+                placeholder="Enter second option"
+                value={formik.values.optionB}
+                onChange={formik.handleChange}
+                className="w-full"
+              />
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-6 text-lg"
+            >
+              Create
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
