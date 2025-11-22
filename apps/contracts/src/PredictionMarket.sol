@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title PredictionMarket
@@ -11,11 +12,17 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * place predictions on different outcomes, and claim winnings proportionally.
  * @dev Uses simple pool-based mechanism where winners split the entire pot.
  */
-contract PredictionMarket is ReentrancyGuard {
+contract PredictionMarket is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     // The only token supported by this contract
     IERC20 public immutable predictionToken;
+    
+    // Fee configuration
+    uint256 public protocolFeeRate; // In basis points (e.g., 200 = 2%)
+    uint256 public creatorFeeRate; // In basis points (e.g., 300 = 3%)
+    uint256 public constant MAX_FEE_RATE = 1000; // 10% maximum per fee
+    uint256 public constant MAX_TOTAL_FEE_RATE = 2000; // 20% maximum combined
 
     struct Market {
         address creator;
@@ -27,6 +34,10 @@ contract PredictionMarket is ReentrancyGuard {
         bool resolved;
         uint256 winningOutcome;
         uint256 createdAt;
+        uint256 poolAfterFees;
+        uint256 protocolFeeAmount;
+        uint256 creatorFeeAmount;
+        bool noWinners;
     }
 
     // Market ID counter
@@ -35,9 +46,17 @@ contract PredictionMarket is ReentrancyGuard {
     /**
      * @notice Constructor
      * @param _predictionToken The ERC20 token to be used for all predictions in all markets
+     * @param _protocolFeeRate Protocol fee rate in basis points (e.g., 200 = 2%)
+     * @param _creatorFeeRate Creator fee rate in basis points (e.g., 300 = 3%)
      */
-    constructor(address _predictionToken) {
+    constructor(address _predictionToken, uint256 _protocolFeeRate, uint256 _creatorFeeRate) Ownable(msg.sender) {
+        if (_protocolFeeRate > MAX_FEE_RATE) revert InvalidFeeRate();
+        if (_creatorFeeRate > MAX_FEE_RATE) revert InvalidFeeRate();
+        if (_protocolFeeRate + _creatorFeeRate > MAX_TOTAL_FEE_RATE) revert InvalidFeeRate();
+        
         predictionToken = IERC20(_predictionToken);
+        protocolFeeRate = _protocolFeeRate;
+        creatorFeeRate = _creatorFeeRate;
     }
 
     // Mappings
@@ -72,6 +91,15 @@ contract PredictionMarket is ReentrancyGuard {
         address indexed user,
         uint256 amount
     );
+    
+    event FeesDistributed(
+        uint256 indexed marketId,
+        uint256 protocolFee,
+        uint256 creatorFee
+    );
+    
+    event FeeRatesUpdated(uint256 protocolFeeRate, uint256 creatorFeeRate);
+    event RefundClaimed(uint256 indexed marketId, address indexed user, uint256 amount);
 
     // Errors
     error InvalidResolver();
@@ -85,6 +113,24 @@ contract PredictionMarket is ReentrancyGuard {
     error OnlyResolver();
     error AlreadyClaimed();
     error NoWinnings();
+    error InvalidFeeRate();
+    error NotNoWinnerMarket();
+    error NoPredictions();
+
+    /**
+     * @notice Set fee rates for both protocol and creator
+     * @param _protocolFeeRate New protocol fee rate in basis points
+     * @param _creatorFeeRate New creator fee rate in basis points
+     */
+    function setFees(uint256 _protocolFeeRate, uint256 _creatorFeeRate) external onlyOwner {
+        if (_protocolFeeRate > MAX_FEE_RATE) revert InvalidFeeRate();
+        if (_creatorFeeRate > MAX_FEE_RATE) revert InvalidFeeRate();
+        if (_protocolFeeRate + _creatorFeeRate > MAX_TOTAL_FEE_RATE) revert InvalidFeeRate();
+        
+        protocolFeeRate = _protocolFeeRate;
+        creatorFeeRate = _creatorFeeRate;
+        emit FeeRatesUpdated(_protocolFeeRate, _creatorFeeRate);
+    }
 
     /**
      * @notice Creates a new prediction market
@@ -112,7 +158,11 @@ contract PredictionMarket is ReentrancyGuard {
             totalPool: 0,
             resolved: false,
             winningOutcome: 0,
-            createdAt: block.timestamp
+            createdAt: block.timestamp,
+            poolAfterFees: 0,
+            protocolFeeAmount: 0,
+            creatorFeeAmount: 0,
+            noWinners: false
         });
 
         emit MarketCreated(
@@ -171,6 +221,35 @@ contract PredictionMarket is ReentrancyGuard {
 
         market.resolved = true;
         market.winningOutcome = winningOutcome;
+        
+        // Check if anyone predicted the winning outcome
+        uint256 winningPool = outcomePools[marketId][winningOutcome];
+        
+        if (winningPool == 0) {
+            // No winners - mark for refunds, don't take fees
+            market.noWinners = true;
+            market.poolAfterFees = market.totalPool;
+            market.protocolFeeAmount = 0;
+            market.creatorFeeAmount = 0;
+        } else {
+            // Calculate and distribute fees
+            uint256 protocolFee = (market.totalPool * protocolFeeRate) / 10000;
+            uint256 creatorFee = (market.totalPool * creatorFeeRate) / 10000;
+            
+            market.protocolFeeAmount = protocolFee;
+            market.creatorFeeAmount = creatorFee;
+            market.poolAfterFees = market.totalPool - protocolFee - creatorFee;
+            
+            // Transfer fees immediately
+            if (protocolFee > 0) {
+                predictionToken.safeTransfer(owner(), protocolFee);
+            }
+            if (creatorFee > 0) {
+                predictionToken.safeTransfer(market.creator, creatorFee);
+            }
+            
+            emit FeesDistributed(marketId, protocolFee, creatorFee);
+        }
 
         emit MarketResolved(marketId, winningOutcome);
     }
@@ -184,6 +263,7 @@ contract PredictionMarket is ReentrancyGuard {
 
         if (market.createdAt == 0) revert MarketNotFound();
         if (!market.resolved) revert MarketNotResolved();
+        if (market.noWinners) revert NotNoWinnerMarket();
         if (hasClaimed[marketId][msg.sender]) revert AlreadyClaimed();
 
         uint256 userPrediction = userPredictions[marketId][msg.sender][market.winningOutcome];
@@ -191,9 +271,9 @@ contract PredictionMarket is ReentrancyGuard {
 
         uint256 winningPool = outcomePools[marketId][market.winningOutcome];
         
-        // Calculate proportional winnings
-        // userWinnings = (userPrediction / winningPool) * totalPool
-        uint256 winnings = (userPrediction * market.totalPool) / winningPool;
+        // Calculate proportional winnings from pool after fees
+        // userWinnings = (userPrediction / winningPool) * poolAfterFees
+        uint256 winnings = (userPrediction * market.poolAfterFees) / winningPool;
 
         // Mark as claimed
         hasClaimed[marketId][msg.sender] = true;
@@ -202,6 +282,35 @@ contract PredictionMarket is ReentrancyGuard {
         predictionToken.safeTransfer(msg.sender, winnings);
 
         emit WinningsClaimed(marketId, msg.sender, winnings);
+    }
+    
+    /**
+     * @notice Claim refund for a market with no winners
+     * @param marketId ID of the market to claim refund from
+     */
+    function claimRefund(uint256 marketId) external nonReentrant {
+        Market storage market = markets[marketId];
+
+        if (market.createdAt == 0) revert MarketNotFound();
+        if (!market.resolved) revert MarketNotResolved();
+        if (!market.noWinners) revert NotNoWinnerMarket();
+        if (hasClaimed[marketId][msg.sender]) revert AlreadyClaimed();
+
+        // Calculate total predictions by this user across all outcomes
+        uint256 totalUserPredictions = 0;
+        for (uint256 i = 0; i < market.numOutcomes; i++) {
+            totalUserPredictions += userPredictions[marketId][msg.sender][i];
+        }
+        
+        if (totalUserPredictions == 0) revert NoPredictions();
+
+        // Mark as claimed
+        hasClaimed[marketId][msg.sender] = true;
+
+        // Transfer refund
+        predictionToken.safeTransfer(msg.sender, totalUserPredictions);
+
+        emit RefundClaimed(marketId, msg.sender, totalUserPredictions);
     }
 
     /**
@@ -258,7 +367,16 @@ contract PredictionMarket is ReentrancyGuard {
         uint256 outcomePool = outcomePools[marketId][outcomeId];
         if (outcomePool == 0) return 0;
 
-        return (userPrediction * market.totalPool) / outcomePool;
+        // If market is resolved, use poolAfterFees, otherwise estimate
+        if (market.resolved) {
+            return (userPrediction * market.poolAfterFees) / outcomePool;
+        } else {
+            // Estimate pool after fees for unresolved markets
+            uint256 protocolFee = (market.totalPool * protocolFeeRate) / 10000;
+            uint256 creatorFee = (market.totalPool * creatorFeeRate) / 10000;
+            uint256 estimatedPoolAfterFees = market.totalPool - protocolFee - creatorFee;
+            return (userPrediction * estimatedPoolAfterFees) / outcomePool;
+        }
     }
 
     /**
