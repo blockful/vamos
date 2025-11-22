@@ -8,10 +8,22 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "clean": "turbo clean",
-    "type-check": "turbo type-check"
+    "type-check": "turbo type-check",
+    "contracts:build": "pnpm --filter @vamos/contracts build",
+    "contracts:test": "pnpm --filter @vamos/contracts test",
+    "contracts:deploy:token": "pnpm --filter @vamos/contracts deploy:token",
+    "contracts:deploy:vamos": "pnpm --filter @vamos/contracts deploy:vamos",
+    "contracts:mint": "pnpm --filter @vamos/contracts mint",
+    "indexer:dev": "pnpm --filter @vamos/indexer dev",
+    "indexer:dev:anvil": "pnpm --filter @vamos/indexer dev:anvil",
+    "indexer:start": "pnpm --filter @vamos/indexer start",
+    "web:dev": "pnpm --filter @vamos/web dev",
+    "web:build": "pnpm --filter @vamos/web build",
+    "web:start": "pnpm --filter @vamos/web start"
   },
   "devDependencies": {
     "@types/node": "^20.8.0",
+    "dotenv-cli": "^11.0.0",
     "turbo": "^1.10.16",
     "typescript": "^5.2.2"
   },

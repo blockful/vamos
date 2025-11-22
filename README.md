@@ -1,50 +1,99 @@
-# vamos
+# Vamos Predictable Market
 
-Vamos Predictable Market
+A decentralized prediction market platform built on Ethereum with a modern tech stack.
 
-A modern Celo blockchain application built with Next.js, TypeScript, and Turborepo.
+## 📁 Monorepo Structure
 
-## Getting Started
+This is a monorepo managed by **Turborepo** and **pnpm workspaces**:
 
-1. Install dependencies:
+```
+vamos/
+├── apps/
+│   ├── contracts/      # Solidity smart contracts (Foundry)
+│   ├── indexer/        # Blockchain indexer (Ponder)
+│   └── web/           # Frontend application (Next.js)
+├── .env               # Centralized environment variables
+└── package.json       # Root package with convenient scripts
+```
 
-   ```bash
-   pnpm install
-   ```
+## 🚀 Quick Start
 
-2. Start the development server:
+### 1. Install Dependencies
 
-   ```bash
-   pnpm dev
-   ```
+```bash
+pnpm install
+```
 
-3. Open [http://localhost:3000](http://localhost:3000) in your browser.
+### 2. Setup Environment Variables
 
-## Project Structure
+Create a `.env` file in the root directory. See [ENV_SETUP.md](./ENV_SETUP.md) for details.
 
-This is a monorepo managed by Turborepo with the following structure:
+### 3. Start Development
 
-- `apps/web` - Next.js application with embedded UI components and utilities
+```bash
+# Run all apps
+pnpm dev
 
-## Available Scripts
+# Or run specific apps
+pnpm web:dev              # Start web app
+pnpm indexer:dev          # Start indexer
+pnpm contracts:build      # Build contracts
+```
 
-- `pnpm dev` - Start development servers
-- `pnpm build` - Build all packages and apps
-- `pnpm lint` - Lint all packages and apps
-- `pnpm type-check` - Run TypeScript type checking
+## 📚 Documentation
 
-## Tech Stack
+- **[MONOREPO_GUIDE.md](./MONOREPO_GUIDE.md)** - How to use the monorepo, run scripts, and manage packages
+- **[ENV_SETUP.md](./ENV_SETUP.md)** - Environment variables configuration
+- **[FARCASTER_SETUP.md](./FARCASTER_SETUP.md)** - Farcaster integration setup
 
-- **Framework**: Next.js 14 with App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **UI Components**: shadcn/ui
-- **Monorepo**: Turborepo
-- **Package Manager**: PNPM
+## 🏗️ Apps
 
-## Learn More
+### `@vamos/contracts`
+Solidity smart contracts for the prediction market, built with Foundry.
+
+**Key Commands:**
+- `pnpm contracts:build` - Compile contracts
+- `pnpm contracts:test` - Run tests
+- `pnpm contracts:deploy:vamos` - Deploy Vamos contract
+- `pnpm contracts:deploy:token` - Deploy prediction token
+
+### `@vamos/indexer`
+Real-time blockchain indexer built with Ponder for efficient data querying.
+
+**Key Commands:**
+- `pnpm indexer:dev` - Start indexer in development
+- `pnpm indexer:start` - Start indexer in production
+
+### `@vamos/web`
+Next.js frontend with Farcaster Frame integration and Web3 connectivity.
+
+**Key Commands:**
+- `pnpm web:dev` - Start dev server
+- `pnpm web:build` - Build for production
+- `pnpm web:start` - Start production server
+
+## 🛠️ Tech Stack
+
+- **Smart Contracts**: Solidity, Foundry, OpenZeppelin
+- **Indexer**: Ponder, PostgreSQL
+- **Frontend**: Next.js 14, TypeScript, Tailwind CSS
+- **Web3**: wagmi, viem, Farcaster SDK
+- **Monorepo**: Turborepo, pnpm workspaces
+
+## 📦 Common Commands
+
+```bash
+pnpm build              # Build all apps
+pnpm dev                # Run all apps in development
+pnpm lint               # Lint all apps
+pnpm type-check         # Type check all apps
+pnpm clean              # Clean build artifacts
+```
+
+## 🔗 Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)
-- [Celo Documentation](https://docs.celo.org/)
+- [Foundry Documentation](https://book.getfoundry.sh/)
+- [Ponder Documentation](https://ponder.sh/)
 - [Turborepo Documentation](https://turbo.build/repo/docs)
-- [shadcn/ui Documentation](https://ui.shadcn.com/)
+- [Farcaster Frames](https://docs.farcaster.xyz/developers/frames/)
