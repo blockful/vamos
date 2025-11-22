@@ -19,15 +19,18 @@ const frame = {
       type: "launch_frame",
       name: "vamos",
       url: appUrl,
-      splashImageUrl: `${appUrl}/icon.png`,
+      splashImageUrl: `${appUrl}/favicon.png`,
       splashBackgroundColor: "#ffffff",
     },
   },
 };
 
 export const metadata: Metadata = {
-  title: 'vamos',
+  title: 'Vamos.Fun',
   description: 'Vamos Predictable Market',
+  icons: {
+    icon: '/favicon.png',
+  },
   openGraph: {
     title: 'vamos',
     description: 'Vamos Predictable Market',
