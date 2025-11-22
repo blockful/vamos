@@ -14,11 +14,13 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 contract PredictionMarket is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    // The only token supported by this contract
+    IERC20 public immutable predictionToken;
+
     struct Market {
         address creator;
         address resolver;
         string question;
-        IERC20 predictionToken;
         uint256 numOutcomes;
         string[] outcomes;
         uint256 totalPool;
@@ -29,6 +31,14 @@ contract PredictionMarket is ReentrancyGuard {
 
     // Market ID counter
     uint256 public marketCount;
+
+    /**
+     * @notice Constructor
+     * @param _predictionToken The ERC20 token to be used for all predictions in all markets
+     */
+    constructor(address _predictionToken) {
+        predictionToken = IERC20(_predictionToken);
+    }
 
     // Mappings
     mapping(uint256 => Market) public markets;
@@ -42,7 +52,6 @@ contract PredictionMarket is ReentrancyGuard {
         address indexed creator,
         string question,
         address indexed resolver,
-        address predictionToken,
         string[] outcomes
     );
 
@@ -81,14 +90,12 @@ contract PredictionMarket is ReentrancyGuard {
      * @notice Creates a new prediction market
      * @param question The question or description of the market
      * @param resolver Address that can resolve the market
-     * @param predictionToken ERC20 token used for predictions
      * @param outcomes Array of outcome descriptions (e.g., ["Yes", "No"])
      * @return marketId The ID of the newly created market
      */
     function createMarket(
         string calldata question,
         address resolver,
-        address predictionToken,
         string[] calldata outcomes
     ) external returns (uint256 marketId) {
         if (resolver == address(0)) revert InvalidResolver();
@@ -100,7 +107,6 @@ contract PredictionMarket is ReentrancyGuard {
             creator: msg.sender,
             resolver: resolver,
             question: question,
-            predictionToken: IERC20(predictionToken),
             numOutcomes: outcomes.length,
             outcomes: outcomes,
             totalPool: 0,
@@ -114,7 +120,6 @@ contract PredictionMarket is ReentrancyGuard {
             msg.sender,
             question,
             resolver,
-            predictionToken,
             outcomes
         );
     }
@@ -138,7 +143,7 @@ contract PredictionMarket is ReentrancyGuard {
         if (amount == 0) revert PredictionAmountZero();
 
         // Transfer tokens from user to contract
-        market.predictionToken.safeTransferFrom(msg.sender, address(this), amount);
+        predictionToken.safeTransferFrom(msg.sender, address(this), amount);
 
         // Update state
         userPredictions[marketId][msg.sender][outcomeId] += amount;
@@ -194,7 +199,7 @@ contract PredictionMarket is ReentrancyGuard {
         hasClaimed[marketId][msg.sender] = true;
 
         // Transfer winnings
-        market.predictionToken.safeTransfer(msg.sender, winnings);
+        predictionToken.safeTransfer(msg.sender, winnings);
 
         emit WinningsClaimed(marketId, msg.sender, winnings);
     }
