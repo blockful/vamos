@@ -27,19 +27,34 @@ export function Navbar() {
 
   // Debug logs
   useEffect(() => {
-    console.log("Navbar - Address:", address);
-    console.log("Navbar - Chain:", chain);
-    console.log("Navbar - Balance:", balance);
-    console.log("Navbar - Is Loading Balance:", isLoadingBalance);
+    console.log("=== NAVBAR DEBUG ===");
+    console.log("Address:", address);
+    console.log("Chain ID:", chain?.id);
+    console.log("Chain Name:", chain?.name);
+    console.log("Is Sepolia?:", chain?.id === sepolia.id);
+    console.log("Balance:", balance);
+    console.log("Is Loading Balance:", isLoadingBalance);
+    console.log("===================");
   }, [address, chain, balance, isLoadingBalance]);
 
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || !chain) return;
 
-    if (chain && !supportedChainIds.includes(chain.id as SupportedChainIds)) {
-      switchChain({ chainId: sepolia.id }); // fallback
+    console.log("Checking chain compatibility...");
+    console.log("Current chain ID:", chain.id);
+    console.log("Supported chains:", supportedChainIds);
+    console.log(
+      "Is supported?:",
+      supportedChainIds.includes(chain.id as SupportedChainIds)
+    );
+
+    if (!supportedChainIds.includes(chain.id as SupportedChainIds)) {
+      console.warn(
+        `Chain ${chain.name} (${chain.id}) not supported. Switching to Sepolia...`
+      );
+      switchChain?.({ chainId: sepolia.id });
     }
-  }, [chain, isConnected]);
+  }, [chain, isConnected, switchChain]);
 
   // Extract user data from context
   const user = context?.user;
