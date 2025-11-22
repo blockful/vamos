@@ -22,37 +22,46 @@ import { isAddress } from "viem";
 const MOCK_MARKETS = [
   {
     id: 1,
-    title: "Alex x Jason",
+    title: "Tennis Match: Alex vs Jason",
+    status: "BETS OPEN",
+    volume: "$100.00",
+    icon: "🎾",
     options: [
-      { name: "Alex", percentage: 65 },
-      { name: "Jason", percentage: 35 },
+      { name: "Alex", percentage: 80, color: "bg-green-400" },
+      { name: "Jason", percentage: 20, color: "bg-yellow-200" },
     ],
   },
   {
     id: 2,
-    title: "Maria x Sofia",
+    title: "Tennis Match: Alex vs Jason",
+    status: "BETS OPEN",
+    volume: "$100.00",
+    icon: "🎾",
     options: [
-      { name: "Maria", percentage: 48 },
-      { name: "Sofia", percentage: 52 },
+      { name: "Alex", percentage: 80, color: "bg-green-400" },
+      { name: "Jason", percentage: 20, color: "bg-yellow-200" },
     ],
   },
   {
     id: 3,
-    title: "Bruno x Lucas",
+    title: "Volleyball Match: Isa vs Dani",
+    status: "BETS CLOSED",
+    volume: "$200.00",
+    icon: "🏐",
     options: [
-      { name: "Bruno", percentage: 70 },
-      { name: "Lucas", percentage: 30 },
+      { name: "Isa", percentage: 60, color: "bg-pink-300" },
+      { name: "Dani", percentage: 40, color: "bg-purple-300" },
     ],
   },
 ];
 
 export default function Markets() {
-  const { isMiniAppReady } = useMiniApp();
+  const { isMiniAppReady, context } = useMiniApp();
+  const { address, isConnected } = useAccount();
   const router = useRouter();
   const [markets, setMarkets] = useState(MOCK_MARKETS);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState<string>("");
-  const { address } = useAccount();
 
   const {
     createMarket,
@@ -62,6 +71,10 @@ export default function Markets() {
     error: contractError,
     hash,
   } = useCreateMarket();
+
+  // Extract user data from context
+  const user = context?.user;
+  const pfpUrl = user?.pfpUrl;
 
   // Formik form
   const formik = useFormik({
@@ -107,15 +120,27 @@ export default function Markets() {
 
         // Calculate equal percentage for all options
         const equalPercentage = Math.floor(100 / validOptions.length);
+        const colors = [
+          "bg-green-400",
+          "bg-yellow-200",
+          "bg-pink-300",
+          "bg-purple-300",
+          "bg-blue-300",
+          "bg-red-300",
+        ];
         const newMarket = {
           id: markets.length + 1,
           title: values.title,
+          status: "BETS OPEN",
+          volume: "$0.00",
+          icon: "🎯",
           options: validOptions.map((name, index) => ({
             name,
             percentage:
               index === 0
                 ? 100 - equalPercentage * (validOptions.length - 1)
                 : equalPercentage,
+            color: colors[index % colors.length],
           })),
         };
         setMarkets([...markets, newMarket]);
@@ -144,10 +169,10 @@ export default function Markets() {
   if (!isMiniAppReady) {
     return (
       <main className="flex-1">
-        <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <section className="flex items-center justify-center min-h-screen bg-[#111909]">
           <div className="w-full max-w-md mx-auto p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FEABEF] mx-auto mb-4"></div>
+            <p className="text-[#FCFDF5]">Loading...</p>
           </div>
         </section>
       </main>
@@ -155,52 +180,63 @@ export default function Markets() {
   }
 
   return (
-    <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <main className="flex-1 min-h-screen bg-[#111909]">
       {/* Markets List */}
-      <section className="max-w-4xl mx-auto px-4 py-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Ongoing Bets</h2>
-
-        <div className="space-y-4">
+      <section className="px-4 pb-24">
+        <div className="max-w-2xl mx-auto space-y-4">
           {markets.map((market) => (
             <div
               key={market.id}
-              className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              className={`rounded-2xl p-5 hover:shadow-lg transition-shadow cursor-pointer ${
+                market.status === "BETS OPEN" ? "bg-[#FCFDF5]" : "bg-gray-100"
+              }`}
               onClick={() => router.push(`/markets/${market.id}`)}
             >
-              <div className="flex items-center gap-4">
-                {/* Market Icon */}
-                <div className="w-12 h-12 rounded-full bg-gray-300 flex-shrink-0"></div>
+              {/* Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-full bg-[#FEABEF] flex items-center justify-center flex-shrink-0 text-2xl">
+                  {market.icon}
+                </div>
+                <span
+                  className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap ${
+                    market.status === "BETS OPEN"
+                      ? "bg-[#FEABEF] text-black"
+                      : "bg-gray-300 text-gray-600"
+                  }`}
+                >
+                  {market.status}
+                </span>
+              </div>
 
-                {/* Market Info */}
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    {market.title}
-                  </h3>
+              {/* Title and Volume */}
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-black mb-1">
+                  {market.title}
+                </h3>
+                <p className="text-sm text-gray-600">Volume: {market.volume}</p>
+              </div>
 
-                  {/* Percentage Bar */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden flex">
-                        {market.options.map((option, index) => (
-                          <div
-                            key={index}
-                            className={`h-full ${
-                              index === 0 ? "bg-green-500" : "bg-red-500"
-                            }`}
-                            style={{ width: `${option.percentage}%` }}
-                          ></div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-gray-600">
-                      {market.options.map((option, index) => (
-                        <span key={index}>
-                          {option.name}: {option.percentage}%
-                        </span>
-                      ))}
+              {/* Options - Bar Chart Style */}
+              <div className="space-y-2">
+                {market.options.map((option, index) => (
+                  <div
+                    key={index}
+                    className="relative h-8 bg-gray-200 rounded-full overflow-hidden"
+                  >
+                    <div
+                      className={`h-full ${option.color} flex items-center px-3 transition-all duration-300`}
+                      style={{ width: `${option.percentage}%` }}
+                    />
+                    <div className="absolute inset-0 flex items-center px-3 justify-between pointer-events-none">
+                      <span className="text-sm font-normal text-black">
+                        {option.name}
+                      </span>
+                      <span className="text-sm font-normal text-black">
+                        {option.percentage}%
+                      </span>
                     </div>
                   </div>
-                </div>
+                ))}
               </div>
             </div>
           ))}
@@ -210,7 +246,7 @@ export default function Markets() {
       {/* Floating Add Button */}
       <Button
         size="icon"
-        className="fixed bottom-8 right-8 w-16 h-16 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-2xl transition-all hover:scale-110 z-50"
+        className="fixed bottom-8 right-8 w-16 h-16 bg-[#FEABEF] hover:bg-[#ff9be0] text-black rounded-full shadow-2xl transition-all hover:scale-110 z-50"
         onClick={() => setIsModalOpen(true)}
       >
         <Plus className="h-8 w-8" />
@@ -218,15 +254,17 @@ export default function Markets() {
 
       {/* Create Market Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#FCFDF5]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Create bet</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-black">
+              Create bet
+            </DialogTitle>
           </DialogHeader>
 
           <form onSubmit={formik.handleSubmit} className="space-y-6 mt-6">
             {/* Title */}
             <div className="space-y-2">
-              <Label htmlFor="title" className="text-sm font-medium">
+              <Label htmlFor="title" className="text-sm font-medium text-black">
                 Title
               </Label>
               <Input
@@ -235,13 +273,16 @@ export default function Markets() {
                 placeholder="Enter market title"
                 value={formik.values.title}
                 onChange={formik.handleChange}
-                className="w-full"
+                className="w-full border-gray-300"
               />
             </div>
 
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-medium">
+              <Label
+                htmlFor="description"
+                className="text-sm font-medium text-black"
+              >
                 Description
               </Label>
               <Textarea
@@ -250,13 +291,13 @@ export default function Markets() {
                 placeholder="Enter market description"
                 value={formik.values.description}
                 onChange={formik.handleChange}
-                className="w-full min-h-[100px]"
+                className="w-full min-h-[100px] border-gray-300"
               />
             </div>
 
             {/* Judge */}
             <div className="space-y-2">
-              <Label htmlFor="judge" className="text-sm font-medium">
+              <Label htmlFor="judge" className="text-sm font-medium text-black">
                 Judge
               </Label>
               <Input
@@ -265,7 +306,7 @@ export default function Markets() {
                 placeholder="Enter judge name or address"
                 value={formik.values.judge}
                 onChange={formik.handleChange}
-                className="w-full"
+                className="w-full border-gray-300"
               />
             </div>
 
