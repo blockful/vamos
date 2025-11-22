@@ -6,11 +6,13 @@ import Image from "next/image";
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export function Navbar() {
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { context } = useMiniApp();
+  const router = useRouter();
 
   // Get wallet balance
   const { data: balance, isLoading: isLoadingBalance } = useBalance({
@@ -40,7 +42,9 @@ export function Navbar() {
   // Handle disconnect
   const handleDisconnect = async () => {
     try {
-      await disconnect();
+      disconnect();
+      // Redirect to home page after disconnect
+      router.push("/");
     } catch (error) {
       console.error("Error disconnecting:", error);
     }
