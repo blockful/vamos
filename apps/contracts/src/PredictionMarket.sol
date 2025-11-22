@@ -21,12 +21,12 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     // Fee configuration
     uint256 public protocolFeeRate; // In basis points (e.g., 200 = 2%)
     uint256 public creatorFeeRate; // In basis points (e.g., 300 = 3%)
-    uint256 public constant MAX_FEE_RATE = 1000; // 10% maximum per fee
-    uint256 public constant MAX_TOTAL_FEE_RATE = 2000; // 20% maximum combined
+    uint256 public constant MAX_FEE_RATE = 500; // 5% maximum per fee
+    uint256 public constant MAX_TOTAL_FEE_RATE = 1000; // 10% maximum combined
 
     struct Market {
         address creator;
-        address resolver;
+        address judge;
         string question;
         uint256 numOutcomes;
         string[] outcomes;
@@ -71,7 +71,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         uint256 indexed marketId,
         address indexed creator,
         string question,
-        address indexed resolver,
+        address indexed judge,
         string[] outcomes
     );
 
@@ -104,7 +104,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     event MarketPaused(uint256 indexed marketId);
 
     // Errors
-    error InvalidResolver();
+    error InvalidJudge();
     error InvalidNumOutcomes();
     error InvalidOutcomesLength();
     error MarketNotFound();
@@ -112,7 +112,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     error InvalidOutcome();
     error PredictionAmountZero();
     error MarketNotResolved();
-    error OnlyResolver();
+    error OnlyJudge();
     error AlreadyClaimed();
     error NoWinnings();
     error InvalidFeeRate();
@@ -138,23 +138,23 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /**
      * @notice Creates a new prediction market
      * @param question The question or description of the market
-     * @param resolver Address that can resolve the market
+     * @param judge Address that can resolve the market
      * @param outcomes Array of outcome descriptions (e.g., ["Yes", "No"])
      * @return marketId The ID of the newly created market
      */
     function createMarket(
         string calldata question,
-        address resolver,
+        address judge,
         string[] calldata outcomes
     ) external returns (uint256 marketId) {
-        if (resolver == address(0)) revert InvalidResolver();
+        if (judge == address(0)) revert InvalidJudge();
         if (outcomes.length < 2) revert InvalidNumOutcomes();
 
         marketId = marketCount++;
 
         markets[marketId] = Market({
             creator: msg.sender,
-            resolver: resolver,
+            judge: judge,
             question: question,
             numOutcomes: outcomes.length,
             outcomes: outcomes,
@@ -173,7 +173,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
             marketId,
             msg.sender,
             question,
-            resolver,
+            judge,
             outcomes
         );
     }
@@ -186,7 +186,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         Market storage market = markets[marketId];
 
         if (market.createdAt == 0) revert MarketNotFound();
-        if (msg.sender != market.resolver) revert OnlyResolver();
+        if (msg.sender != market.judge) revert OnlyJudge();
         if (market.resolved) revert MarketAlreadyResolved();
         if (market.paused) revert MarketIsPaused();
 
@@ -237,7 +237,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         Market storage market = markets[marketId];
 
         if (market.createdAt == 0) revert MarketNotFound();
-        if (msg.sender != market.resolver) revert OnlyResolver();
+        if (msg.sender != market.judge) revert OnlyJudge();
         if (market.resolved) revert MarketAlreadyResolved();
         if (winningOutcome >= market.numOutcomes) revert InvalidOutcome();
 

@@ -63,7 +63,7 @@ contract PredictionMarketTest is Test {
     
     address public owner = address(0x999);
     address public creator = address(1);
-    address public resolver = address(2);
+    address public judge = address(2);
     address public user1 = address(3);
     address public user2 = address(4);
     
@@ -95,7 +95,7 @@ contract PredictionMarketTest is Test {
         
         uint256 marketId = market.createMarket(
             "Will it rain tomorrow?",
-            resolver,
+            judge,
             outcomes
         );
         vm.stopPrank();
@@ -124,7 +124,7 @@ contract PredictionMarketTest is Test {
         
         uint256 marketId = nstMarket.createMarket(
             "Will it rain tomorrow?",
-            resolver,
+            judge,
             outcomes
         );
         vm.stopPrank();
@@ -151,7 +151,7 @@ contract PredictionMarketTest is Test {
         
         uint256 marketId = market.createMarket(
             "Will it rain tomorrow?",
-            resolver,
+            judge,
             outcomes
         );
         vm.stopPrank();
@@ -174,7 +174,7 @@ contract PredictionMarketTest is Test {
         assertEq(market.getOutcomePool(marketId, 0), 300 ether, "Outcome 0 pool should be 300");
         
         // Resolve market (outcome 0 wins)
-        vm.prank(resolver);
+        vm.prank(judge);
         market.resolveMarket(marketId, 0);
         
         // Calculate expected winnings (with fees)
@@ -205,7 +205,7 @@ contract PredictionMarketTest is Test {
         
         uint256 marketId = market.createMarket(
             "Standard token market?",
-            resolver,
+            judge,
             outcomes
         );
         vm.stopPrank();
@@ -231,7 +231,7 @@ contract PredictionMarketTest is Test {
         assertEq(marketData.totalPool, 150 ether, "Total pool exact");
         
         // Resolve market - outcome 0 wins
-        vm.prank(resolver);
+        vm.prank(judge);
         market.resolveMarket(marketId, 0);
         
         // Claim winnings
@@ -261,19 +261,19 @@ contract PredictionMarketTest is Test {
     function testConstructorRejectsHighProtocolFee() public {
         vm.prank(owner);
         vm.expectRevert();
-        new PredictionMarket(address(token), 1001, 100); // 10.01% protocol fee (> MAX)
+        new PredictionMarket(address(token), 501, 100); // 5.01% protocol fee (> MAX)
     }
     
     function testConstructorRejectsHighCreatorFee() public {
         vm.prank(owner);
         vm.expectRevert();
-        new PredictionMarket(address(token), 100, 1001); // 10.01% creator fee (> MAX)
+        new PredictionMarket(address(token), 100, 501); // 5.01% creator fee (> MAX)
     }
     
     function testConstructorRejectsCombinedHighFees() public {
         vm.prank(owner);
         vm.expectRevert();
-        new PredictionMarket(address(token), 1000, 1001); // 10% + 10.01% = 20.01% total (> MAX)
+        new PredictionMarket(address(token), 500, 501); // 5% + 5.01% = 10.01% total (> MAX)
     }
     
     function testOnlyOwnerCanSetFees() public {
@@ -291,19 +291,19 @@ contract PredictionMarketTest is Test {
     function testSetFeesRejectsHighProtocolFee() public {
         vm.prank(owner);
         vm.expectRevert();
-        market.setFees(1001, 100); // Protocol > 10%
+        market.setFees(501, 100); // Protocol > 5%
     }
     
     function testSetFeesRejectsHighCreatorFee() public {
         vm.prank(owner);
         vm.expectRevert();
-        market.setFees(100, 1001); // Creator > 10%
+        market.setFees(100, 501); // Creator > 5%
     }
     
     function testSetFeesRejectsCombinedHighFees() public {
         vm.prank(owner);
         vm.expectRevert();
-        market.setFees(1000, 1001); // 10% + 10.01% > 20%
+        market.setFees(500, 501); // 5% + 5.01% > 10%
     }
     
     function testFeesDistributedDuringResolution() public {
@@ -312,7 +312,7 @@ contract PredictionMarketTest is Test {
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         // User1 places 100 tokens on outcome 0
@@ -336,7 +336,7 @@ contract PredictionMarketTest is Test {
         uint256 creatorBalanceBefore = token.balanceOf(creator);
         
         // Resolve market
-        vm.prank(resolver);
+        vm.prank(judge);
         market.resolveMarket(marketId, 0);
         
         // Check fees were transferred
@@ -356,7 +356,7 @@ contract PredictionMarketTest is Test {
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         // User1 places 100 tokens on outcome 0 (winner)
@@ -377,7 +377,7 @@ contract PredictionMarketTest is Test {
         // Pool after fees: 285 ether
         
         // Resolve market (outcome 0 wins)
-        vm.prank(resolver);
+        vm.prank(judge);
         market.resolveMarket(marketId, 0);
         
         // User1 should get entire poolAfterFees (285 ether) since they're the only winner
@@ -399,7 +399,7 @@ contract PredictionMarketTest is Test {
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = zeroFeeMarket.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = zeroFeeMarket.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         vm.startPrank(user1);
@@ -410,7 +410,7 @@ contract PredictionMarketTest is Test {
         uint256 ownerBalanceBefore = token.balanceOf(owner);
         uint256 creatorBalanceBefore = token.balanceOf(creator);
         
-        vm.prank(resolver);
+        vm.prank(judge);
         zeroFeeMarket.resolveMarket(marketId, 0);
         
         // No fees should be transferred
@@ -425,7 +425,7 @@ contract PredictionMarketTest is Test {
         outcomes[0] = "A";
         outcomes[1] = "B";
         outcomes[2] = "C";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         // User1 predicts on outcome 0
@@ -446,7 +446,7 @@ contract PredictionMarketTest is Test {
         uint256 creatorBalanceBefore = token.balanceOf(creator);
         
         // Resolve to outcome 2 (nobody predicted this)
-        vm.prank(resolver);
+        vm.prank(judge);
         market.resolveMarket(marketId, 2);
         
         // No fees should be taken
@@ -476,7 +476,7 @@ contract PredictionMarketTest is Test {
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         vm.startPrank(user1);
@@ -485,7 +485,7 @@ contract PredictionMarketTest is Test {
         vm.stopPrank();
         
         // Resolve to outcome 0 (nobody predicted)
-        vm.prank(resolver);
+        vm.prank(judge);
         market.resolveMarket(marketId, 0);
         
         // Claim refund
@@ -504,7 +504,7 @@ contract PredictionMarketTest is Test {
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         vm.startPrank(user1);
@@ -513,7 +513,7 @@ contract PredictionMarketTest is Test {
         vm.stopPrank();
         
         // Resolve to outcome 0 (has winner)
-        vm.prank(resolver);
+        vm.prank(judge);
         market.resolveMarket(marketId, 0);
         
         // Try to claim refund - should fail
@@ -528,7 +528,7 @@ contract PredictionMarketTest is Test {
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         // User1: 100 tokens on outcome 0
@@ -550,7 +550,7 @@ contract PredictionMarketTest is Test {
         // User1 share: (100/300) * 285 = 95 ether
         // User2 share: (200/300) * 285 = 190 ether
         
-        vm.prank(resolver);
+        vm.prank(judge);
         market.resolveMarket(marketId, 0);
         
         uint256 user1BalanceBefore = token.balanceOf(user1);
@@ -588,21 +588,21 @@ contract PredictionMarketTest is Test {
     // Market Pausing Tests
     // ============================================
     
-    function testResolverCanPauseMarket() public {
+    function testJudgeCanPauseMarket() public {
         // Create market
         vm.startPrank(creator);
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         // Verify market is not paused initially
         PredictionMarket.Market memory marketData = market.getMarket(marketId);
         assertFalse(marketData.paused, "Market should not be paused initially");
         
-        // Resolver pauses the market
-        vm.prank(resolver);
+        // Judge pauses the market
+        vm.prank(judge);
         market.pauseMarket(marketId);
         
         // Verify market is now paused
@@ -610,13 +610,13 @@ contract PredictionMarketTest is Test {
         assertTrue(marketData.paused, "Market should be paused after pause");
     }
     
-    function testNonResolverCannotPauseMarket() public {
+    function testNonJudgeCannotPauseMarket() public {
         // Create market
         vm.startPrank(creator);
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         // User1 tries to pause the market - should fail
@@ -641,7 +641,7 @@ contract PredictionMarketTest is Test {
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         // User1 places prediction before pause - should succeed
@@ -650,8 +650,8 @@ contract PredictionMarketTest is Test {
         market.placePrediction(marketId, 0, 50 ether);
         vm.stopPrank();
         
-        // Resolver pauses the market
-        vm.prank(resolver);
+        // Judge pauses the market
+        vm.prank(judge);
         market.pauseMarket(marketId);
         
         // User1 tries to place another prediction - should fail
@@ -673,7 +673,7 @@ contract PredictionMarketTest is Test {
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         // User1 places prediction
@@ -682,12 +682,12 @@ contract PredictionMarketTest is Test {
         market.placePrediction(marketId, 0, 100 ether);
         vm.stopPrank();
         
-        // Resolver pauses the market
-        vm.prank(resolver);
+        // Judge pauses the market
+        vm.prank(judge);
         market.pauseMarket(marketId);
         
-        // Resolver resolves the paused market - should succeed
-        vm.prank(resolver);
+        // Judge resolves the paused market - should succeed
+        vm.prank(judge);
         market.resolveMarket(marketId, 0);
         
         // Verify market is resolved
@@ -702,7 +702,7 @@ contract PredictionMarketTest is Test {
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
         // User1 places prediction
@@ -711,12 +711,12 @@ contract PredictionMarketTest is Test {
         market.placePrediction(marketId, 0, 100 ether);
         vm.stopPrank();
         
-        // Resolver resolves the market
-        vm.prank(resolver);
+        // Judge resolves the market
+        vm.prank(judge);
         market.resolveMarket(marketId, 0);
         
         // Try to pause already resolved market - should fail
-        vm.prank(resolver);
+        vm.prank(judge);
         vm.expectRevert();
         market.pauseMarket(marketId);
     }
@@ -727,15 +727,15 @@ contract PredictionMarketTest is Test {
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
         vm.stopPrank();
         
-        // Resolver pauses the market
-        vm.prank(resolver);
+        // Judge pauses the market
+        vm.prank(judge);
         market.pauseMarket(marketId);
         
         // Try to pause again - should fail
-        vm.prank(resolver);
+        vm.prank(judge);
         vm.expectRevert();
         market.pauseMarket(marketId);
     }
@@ -746,7 +746,7 @@ contract PredictionMarketTest is Test {
         string[] memory outcomes = new string[](2);
         outcomes[0] = "Yes";
         outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Will it happen?", resolver, outcomes);
+        uint256 marketId = market.createMarket("Will it happen?", judge, outcomes);
         vm.stopPrank();
         
         // User1 places 100 tokens on outcome 0
@@ -765,8 +765,8 @@ contract PredictionMarketTest is Test {
         // Outcome 0 pool: 100 ether
         // Outcome 1 pool: 50 ether
         
-        // Resolver decides outcome 1 will win and pauses the market first
-        vm.prank(resolver);
+        // Judge decides outcome 1 will win and pauses the market first
+        vm.prank(judge);
         market.pauseMarket(marketId);
         
         // User1 tries to frontrun by placing more on outcome 1 - should fail
@@ -776,8 +776,8 @@ contract PredictionMarketTest is Test {
         market.placePrediction(marketId, 1, 500 ether);
         vm.stopPrank();
         
-        // Resolver resolves to outcome 1
-        vm.prank(resolver);
+        // Judge resolves to outcome 1
+        vm.prank(judge);
         market.resolveMarket(marketId, 1);
         
         // User2 should be the only winner with their 50 tokens
