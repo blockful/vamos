@@ -1,28 +1,42 @@
 import { ponder } from "ponder:registry";
 import { VamosAbi } from "../abis/VamosAbi";
-import { markets, bets } from "ponder:schema";
+import { markets, outcomes, bets } from "ponder:schema";
+import { MarketStatus } from "./constants";
 
 // Helper function to handle MarketCreated for all contracts
 const handleMarketCreated = async ({ event, context }: any) => {
   const { db } = context;
   
+  const marketId = event.args.marketId.toString();
+  
+  // Insert the market
   await db.insert(markets).values({
-    id: event.args.marketId.toString(),
+    id: marketId,
     creator: event.args.creator,
     judge: event.args.judge,
     question: event.args.question,
     numOutcomes: event.args.outcomes.length,
-    outcomes: event.args.outcomes,
     totalPool: 0n,
-    resolved: false,
+    status: MarketStatus.OPEN,
     winningOutcome: null,
     createdAt: event.block.timestamp,
     poolAfterFees: 0n,
     protocolFeeAmount: 0n,
     creatorFeeAmount: 0n,
     noWinners: false,
-    paused: false,
   });
+  
+  // Insert each outcome
+  const outcomeDescriptions: string[] = event.args.outcomes;
+  for (let i = 0; i < outcomeDescriptions.length; i++) {
+    await db.insert(outcomes).values({
+      id: `${marketId}-${i}`,
+      marketId: marketId,
+      outcomeIndex: i,
+      description: outcomeDescriptions[i],
+      totalAmount: 0n,
+    });
+  }
 };
 
 // Helper function to handle PredictionPlaced for all contracts
@@ -31,10 +45,11 @@ const handlePredictionPlaced = async ({ event, context }: any) => {
   
   const marketId = event.args.marketId.toString();
   const user = event.args.user;
-  const outcomeId = Number(event.args.outcomeId);
+  const outcomeIndex = Number(event.args.outcomeId);
   const amount = event.args.amount;
   
-  const betId = `${marketId}-${user}-${outcomeId}`;
+  const outcomeId = `${marketId}-${outcomeIndex}`;
+  const betId = `${marketId}-${user}-${outcomeIndex}`;
   
   // Upsert bet: insert if new, or update by adding to amount if exists
   await db
@@ -42,8 +57,9 @@ const handlePredictionPlaced = async ({ event, context }: any) => {
     .values({
       id: betId,
       marketId,
-      user,
       outcomeId,
+      user,
+      outcomeIndex,
       amount,
       lastUpdated: event.block.timestamp,
     })
@@ -57,6 +73,13 @@ const handlePredictionPlaced = async ({ event, context }: any) => {
     .update(markets, { id: marketId })
     .set((row: typeof markets.$inferSelect) => ({
       totalPool: row.totalPool + amount,
+    }));
+  
+  // Update outcome totalAmount by adding the new amount
+  await db
+    .update(outcomes, { id: outcomeId })
+    .set((row: typeof outcomes.$inferSelect) => ({
+      totalAmount: row.totalAmount + amount,
     }));
 };
 
@@ -78,7 +101,7 @@ const handleMarketResolved = async ({ event, context }: any) => {
   await db
     .update(markets, { id: marketId })
     .set({
-      resolved: true,
+      status: MarketStatus.RESOLVED,
       winningOutcome,
       poolAfterFees: marketData.poolAfterFees,
       protocolFeeAmount: marketData.protocolFeeAmount,
@@ -94,7 +117,7 @@ const handleMarketPaused = async ({ event, context }: any) => {
   await db
     .update(markets, { id: event.args.marketId.toString() })
     .set({
-      paused: true,
+      status: MarketStatus.PAUSED,
     });
 };
 
