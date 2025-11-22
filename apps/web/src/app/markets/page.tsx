@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 const MOCK_MARKETS = [
   {
     id: 1,
-    title: "Match: Alex x Jason",
+    title: "Alex x Jason",
     options: [
       { name: "Alex", percentage: 65 },
       { name: "Jason", percentage: 35 },
@@ -26,7 +26,7 @@ const MOCK_MARKETS = [
   },
   {
     id: 2,
-    title: "Match: Maria x Sofia",
+    title: "Maria x Sofia",
     options: [
       { name: "Maria", percentage: 48 },
       { name: "Sofia", percentage: 52 },
@@ -34,7 +34,7 @@ const MOCK_MARKETS = [
   },
   {
     id: 3,
-    title: "Match: Bruno x Lucas",
+    title: "Bruno x Lucas",
     options: [
       { name: "Bruno", percentage: 70 },
       { name: "Lucas", percentage: 30 },

@@ -8,7 +8,7 @@ import { Share2 } from "lucide-react";
 const MOCK_MARKETS = [
   {
     id: 1,
-    title: "Match: Alex x Jason",
+    title: "Alex x Jason",
     description: "a bet about a tennis match",
     options: [
       {
@@ -35,7 +35,7 @@ const MOCK_MARKETS = [
   },
   {
     id: 2,
-    title: "Match: Maria x Sofia",
+    title: "Maria x Sofia",
     description: "a bet about a basketball match",
     options: [
       {
@@ -54,7 +54,7 @@ const MOCK_MARKETS = [
   },
   {
     id: 3,
-    title: "Match: Bruno x Lucas",
+    title: "Bruno x Lucas",
     description: "a bet about a soccer match",
     options: [
       {
