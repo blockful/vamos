@@ -1,22 +1,15 @@
 "use client";
 
 import { LogOut, Wallet } from "lucide-react";
-import { useAccount, useDisconnect, useBalance, useSwitchChain } from "wagmi";
+import { useAccount, useDisconnect, useBalance } from "wagmi";
 import Image from "next/image";
 import { useMiniApp } from "@/contexts/miniapp-context";
-import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import {
-  SupportedChainIds,
-  supportedChainIds,
-} from "@/contexts/frame-wallet-context";
-import { sepolia } from "viem/chains";
 
 export function Navbar() {
   const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
-  const { switchChain } = useSwitchChain();
   const { context } = useMiniApp();
   const router = useRouter();
   // Get wallet balance for the current chain
@@ -24,37 +17,6 @@ export function Navbar() {
     address: address,
     chainId: chain?.id,
   });
-
-  // Debug logs
-  useEffect(() => {
-    console.log("=== NAVBAR DEBUG ===");
-    console.log("Address:", address);
-    console.log("Chain ID:", chain?.id);
-    console.log("Chain Name:", chain?.name);
-    console.log("Is Sepolia?:", chain?.id === sepolia.id);
-    console.log("Balance:", balance);
-    console.log("Is Loading Balance:", isLoadingBalance);
-    console.log("===================");
-  }, [address, chain, balance, isLoadingBalance]);
-
-  useEffect(() => {
-    if (!isConnected || !chain) return;
-
-    console.log("Checking chain compatibility...");
-    console.log("Current chain ID:", chain.id);
-    console.log("Supported chains:", supportedChainIds);
-    console.log(
-      "Is supported?:",
-      supportedChainIds.includes(chain.id as SupportedChainIds)
-    );
-
-    if (!supportedChainIds.includes(chain.id as SupportedChainIds)) {
-      console.warn(
-        `Chain ${chain.name} (${chain.id}) not supported. Switching to Sepolia...`
-      );
-      switchChain?.({ chainId: sepolia.id });
-    }
-  }, [chain, isConnected, switchChain]);
 
   // Extract user data from context
   const user = context?.user;
