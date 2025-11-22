@@ -61,17 +61,22 @@ contract PredictionMarketTest is Test {
     MockERC20 public token;
     NonStandardToken public nstToken;
     
+    address public owner = address(0x999);
     address public creator = address(1);
     address public resolver = address(2);
     address public user1 = address(3);
     address public user2 = address(4);
     
+    uint256 public constant PROTOCOL_FEE = 200; // 2%
+    uint256 public constant CREATOR_FEE = 300; // 3%
+    
     function setUp() public {
         token = new MockERC20();
         nstToken = new NonStandardToken();
         
-        // Deploy market with standard token
-        market = new PredictionMarket(address(token));
+        // Deploy market with standard token and fees
+        vm.prank(owner);
+        market = new PredictionMarket(address(token), PROTOCOL_FEE, CREATOR_FEE);
         
         // Mint tokens to users
         token.mint(user1, 1000 ether);
@@ -108,7 +113,8 @@ contract PredictionMarketTest is Test {
     
     function testNonStandardToken() public {
         // Deploy a separate market instance with non-standard token
-        PredictionMarket nstMarket = new PredictionMarket(address(nstToken));
+        vm.prank(owner);
+        PredictionMarket nstMarket = new PredictionMarket(address(nstToken), PROTOCOL_FEE, CREATOR_FEE);
         
         // Create market with non-standard token (doesn't return bool)
         vm.startPrank(creator);
@@ -171,14 +177,15 @@ contract PredictionMarketTest is Test {
         vm.prank(resolver);
         market.resolveMarket(marketId, 0);
         
-        // Calculate expected winnings
+        // Calculate expected winnings (with fees)
+        // Total: 300, Protocol fee: 6 (2%), Creator fee: 9 (3%), Pool after fees: 285
         uint256 user1WinningsExpected = market.calculatePotentialWinnings(marketId, user1, 0);
         uint256 user2WinningsExpected = market.calculatePotentialWinnings(marketId, user2, 0);
         
-        // User1 should get: (100 / 300) * 300 = 100 tokens
-        // User2 should get: (200 / 300) * 300 = 200 tokens
-        assertEq(user1WinningsExpected, 100 ether, "User1 should win 100 tokens");
-        assertEq(user2WinningsExpected, 200 ether, "User2 should win 200 tokens");
+        // User1 should get: (100 / 300) * 285 = 95 tokens
+        // User2 should get: (200 / 300) * 285 = 190 tokens
+        assertEq(user1WinningsExpected, 95 ether, "User1 should win 95 tokens");
+        assertEq(user2WinningsExpected, 190 ether, "User2 should win 190 tokens");
         
         // Claim winnings
         uint256 user1BalanceBefore = token.balanceOf(user1);
@@ -186,7 +193,7 @@ contract PredictionMarketTest is Test {
         market.claimWinnings(marketId);
         uint256 user1Received = token.balanceOf(user1) - user1BalanceBefore;
         
-        assertEq(user1Received, 100 ether, "User1 should receive 100 tokens");
+        assertEq(user1Received, 95 ether, "User1 should receive 95 tokens");
     }
     
     function testClaimWinningsFullScenario() public {
@@ -233,11 +240,348 @@ contract PredictionMarketTest is Test {
         market.claimWinnings(marketId);
         uint256 user1Received = token.balanceOf(user1) - user1BalanceBefore;
         
-        // User1 should receive exactly 150 tokens (entire pool, as only winner)
-        assertEq(user1Received, 150 ether, "User1 should receive exact winnings");
+        // User1 should receive pool after fees
+        // Total: 150, Protocol fee: 3 (2%), Creator fee: 4.5 (3%), Pool after fees: 142.5
+        assertEq(user1Received, 142.5 ether, "User1 should receive exact winnings after fees");
         
         // Verify user2 has no winnings on the winning outcome
         assertEq(market.getUserPrediction(marketId, user2, 0), 0, "User2 should have no predictions on winning outcome");
+    }
+    
+    // ============================================
+    // Fee System Tests
+    // ============================================
+    
+    function testConstructorSetsFees() public {
+        assertEq(market.owner(), owner, "Owner should be set");
+        assertEq(market.protocolFeeRate(), PROTOCOL_FEE, "Protocol fee should be set");
+        assertEq(market.creatorFeeRate(), CREATOR_FEE, "Creator fee should be set");
+    }
+    
+    function testConstructorRejectsHighProtocolFee() public {
+        vm.prank(owner);
+        vm.expectRevert();
+        new PredictionMarket(address(token), 1001, 100); // 10.01% protocol fee (> MAX)
+    }
+    
+    function testConstructorRejectsHighCreatorFee() public {
+        vm.prank(owner);
+        vm.expectRevert();
+        new PredictionMarket(address(token), 100, 1001); // 10.01% creator fee (> MAX)
+    }
+    
+    function testConstructorRejectsCombinedHighFees() public {
+        vm.prank(owner);
+        vm.expectRevert();
+        new PredictionMarket(address(token), 1000, 1001); // 10% + 10.01% = 20.01% total (> MAX)
+    }
+    
+    function testOnlyOwnerCanSetFees() public {
+        vm.prank(user1);
+        vm.expectRevert();
+        market.setFees(150, 250);
+        
+        // Owner can set it
+        vm.prank(owner);
+        market.setFees(150, 250);
+        assertEq(market.protocolFeeRate(), 150, "Protocol fee should be updated");
+        assertEq(market.creatorFeeRate(), 250, "Creator fee should be updated");
+    }
+    
+    function testSetFeesRejectsHighProtocolFee() public {
+        vm.prank(owner);
+        vm.expectRevert();
+        market.setFees(1001, 100); // Protocol > 10%
+    }
+    
+    function testSetFeesRejectsHighCreatorFee() public {
+        vm.prank(owner);
+        vm.expectRevert();
+        market.setFees(100, 1001); // Creator > 10%
+    }
+    
+    function testSetFeesRejectsCombinedHighFees() public {
+        vm.prank(owner);
+        vm.expectRevert();
+        market.setFees(1000, 1001); // 10% + 10.01% > 20%
+    }
+    
+    function testFeesDistributedDuringResolution() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        // User1 places 100 tokens on outcome 0
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // User2 places 50 tokens on outcome 1
+        vm.startPrank(user2);
+        token.approve(address(market), 50 ether);
+        market.placePrediction(marketId, 1, 50 ether);
+        vm.stopPrank();
+        
+        // Total pool: 150 ether
+        // Expected protocol fee: 150 * 0.02 = 3 ether
+        // Expected creator fee: 150 * 0.03 = 4.5 ether
+        // Pool after fees: 142.5 ether
+        
+        uint256 ownerBalanceBefore = token.balanceOf(owner);
+        uint256 creatorBalanceBefore = token.balanceOf(creator);
+        
+        // Resolve market
+        vm.prank(resolver);
+        market.resolveMarket(marketId, 0);
+        
+        // Check fees were transferred
+        assertEq(token.balanceOf(owner) - ownerBalanceBefore, 3 ether, "Protocol fee should be transferred");
+        assertEq(token.balanceOf(creator) - creatorBalanceBefore, 4.5 ether, "Creator fee should be transferred");
+        
+        // Check market data
+        PredictionMarket.Market memory marketData = market.getMarket(marketId);
+        assertEq(marketData.protocolFeeAmount, 3 ether, "Protocol fee amount should be stored");
+        assertEq(marketData.creatorFeeAmount, 4.5 ether, "Creator fee amount should be stored");
+        assertEq(marketData.poolAfterFees, 142.5 ether, "Pool after fees should be correct");
+    }
+    
+    function testWinningsCalculatedFromPoolAfterFees() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        // User1 places 100 tokens on outcome 0 (winner)
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // User2 places 200 tokens on outcome 1 (loser)
+        vm.startPrank(user2);
+        token.approve(address(market), 200 ether);
+        market.placePrediction(marketId, 1, 200 ether);
+        vm.stopPrank();
+        
+        // Total pool: 300 ether
+        // Protocol fee: 300 * 0.02 = 6 ether
+        // Creator fee: 300 * 0.03 = 9 ether
+        // Pool after fees: 285 ether
+        
+        // Resolve market (outcome 0 wins)
+        vm.prank(resolver);
+        market.resolveMarket(marketId, 0);
+        
+        // User1 should get entire poolAfterFees (285 ether) since they're the only winner
+        uint256 user1BalanceBefore = token.balanceOf(user1);
+        vm.prank(user1);
+        market.claimWinnings(marketId);
+        uint256 user1Received = token.balanceOf(user1) - user1BalanceBefore;
+        
+        assertEq(user1Received, 285 ether, "User1 should receive pool after fees");
+    }
+    
+    function testZeroFeesWork() public {
+        // Deploy market with zero fees
+        vm.prank(owner);
+        PredictionMarket zeroFeeMarket = new PredictionMarket(address(token), 0, 0);
+        
+        // Create and resolve market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = zeroFeeMarket.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        vm.startPrank(user1);
+        token.approve(address(zeroFeeMarket), 100 ether);
+        zeroFeeMarket.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        uint256 ownerBalanceBefore = token.balanceOf(owner);
+        uint256 creatorBalanceBefore = token.balanceOf(creator);
+        
+        vm.prank(resolver);
+        zeroFeeMarket.resolveMarket(marketId, 0);
+        
+        // No fees should be transferred
+        assertEq(token.balanceOf(owner), ownerBalanceBefore, "No protocol fee with 0% rate");
+        assertEq(token.balanceOf(creator), creatorBalanceBefore, "No creator fee with 0% rate");
+    }
+    
+    function testNoWinnerScenarioRefundsWithoutFees() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](3);
+        outcomes[0] = "A";
+        outcomes[1] = "B";
+        outcomes[2] = "C";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        // User1 predicts on outcome 0
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // User2 predicts on outcome 1
+        vm.startPrank(user2);
+        token.approve(address(market), 50 ether);
+        market.placePrediction(marketId, 1, 50 ether);
+        vm.stopPrank();
+        
+        // Total pool: 150 ether
+        
+        uint256 ownerBalanceBefore = token.balanceOf(owner);
+        uint256 creatorBalanceBefore = token.balanceOf(creator);
+        
+        // Resolve to outcome 2 (nobody predicted this)
+        vm.prank(resolver);
+        market.resolveMarket(marketId, 2);
+        
+        // No fees should be taken
+        assertEq(token.balanceOf(owner), ownerBalanceBefore, "No protocol fee when no winners");
+        assertEq(token.balanceOf(creator), creatorBalanceBefore, "No creator fee when no winners");
+        
+        // Market should be marked for refund
+        PredictionMarket.Market memory marketData = market.getMarket(marketId);
+        assertTrue(marketData.noWinners, "Market should be marked as no winners");
+        assertEq(marketData.poolAfterFees, 150 ether, "Pool after fees should equal total pool");
+        
+        // Users should be able to claim refunds
+        uint256 user1BalanceBefore = token.balanceOf(user1);
+        vm.prank(user1);
+        market.claimRefund(marketId);
+        assertEq(token.balanceOf(user1) - user1BalanceBefore, 100 ether, "User1 should get refund");
+        
+        uint256 user2BalanceBefore = token.balanceOf(user2);
+        vm.prank(user2);
+        market.claimRefund(marketId);
+        assertEq(token.balanceOf(user2) - user2BalanceBefore, 50 ether, "User2 should get refund");
+    }
+    
+    function testCannotClaimRefundTwice() public {
+        // Setup no-winner scenario
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 1, 100 ether);
+        vm.stopPrank();
+        
+        // Resolve to outcome 0 (nobody predicted)
+        vm.prank(resolver);
+        market.resolveMarket(marketId, 0);
+        
+        // Claim refund
+        vm.prank(user1);
+        market.claimRefund(marketId);
+        
+        // Try to claim again
+        vm.prank(user1);
+        vm.expectRevert();
+        market.claimRefund(marketId);
+    }
+    
+    function testCannotClaimRefundIfNotNoWinnerMarket() public {
+        // Normal market with winners
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // Resolve to outcome 0 (has winner)
+        vm.prank(resolver);
+        market.resolveMarket(marketId, 0);
+        
+        // Try to claim refund - should fail
+        vm.prank(user1);
+        vm.expectRevert();
+        market.claimRefund(marketId);
+    }
+    
+    function testMultipleWinnersSplitPoolAfterFees() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        // User1: 100 tokens on outcome 0
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // User2: 200 tokens on outcome 0
+        vm.startPrank(user2);
+        token.approve(address(market), 200 ether);
+        market.placePrediction(marketId, 0, 200 ether);
+        vm.stopPrank();
+        
+        // Total: 300 ether on outcome 0
+        // Protocol fee: 6 ether (2%)
+        // Creator fee: 9 ether (3%)
+        // Pool after fees: 285 ether
+        // User1 share: (100/300) * 285 = 95 ether
+        // User2 share: (200/300) * 285 = 190 ether
+        
+        vm.prank(resolver);
+        market.resolveMarket(marketId, 0);
+        
+        uint256 user1BalanceBefore = token.balanceOf(user1);
+        vm.prank(user1);
+        market.claimWinnings(marketId);
+        assertEq(token.balanceOf(user1) - user1BalanceBefore, 95 ether, "User1 proportional share");
+        
+        uint256 user2BalanceBefore = token.balanceOf(user2);
+        vm.prank(user2);
+        market.claimWinnings(marketId);
+        assertEq(token.balanceOf(user2) - user2BalanceBefore, 190 ether, "User2 proportional share");
+    }
+    
+    function testOwnableInheritance() public {
+        // Test that ownership functions work via Ownable
+        assertEq(market.owner(), owner, "Owner should be set correctly");
+        
+        // Transfer ownership
+        vm.prank(owner);
+        market.transferOwnership(user1);
+        assertEq(market.owner(), user1, "Ownership should be transferred");
+        
+        // Old owner cannot set fees
+        vm.prank(owner);
+        vm.expectRevert();
+        market.setFees(100, 100);
+        
+        // New owner can set fees
+        vm.prank(user1);
+        market.setFees(100, 100);
+        assertEq(market.protocolFeeRate(), 100, "New owner can update fees");
     }
 }
 
