@@ -1,13 +1,15 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAccount, useConnect } from "wagmi";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { sdk } from "@farcaster/frame-sdk";
 
 export default function Home() {
   const { context, isMiniAppReady } = useMiniApp();
   const router = useRouter();
+  const [isRequestingWallet, setIsRequestingWallet] = useState(false);
 
   // Wallet connection hooks
   const { address, isConnected, isConnecting } = useAccount();
@@ -39,6 +41,32 @@ export default function Home() {
   const user = context?.user;
   const displayName = user?.displayName || user?.username || "User";
   const pfpUrl = user?.pfpUrl;
+
+  // Function to request wallet access
+  const handleConnectWallet = async () => {
+    try {
+      setIsRequestingWallet(true);
+
+      // Request wallet access from Farcaster
+      const result = await sdk.wallet.ethProvider.request({
+        method: "eth_requestAccounts",
+      });
+
+      console.log("Wallet access granted:", result);
+
+      // After wallet access, connect via wagmi
+      if (connectors.length > 0) {
+        const farcasterConnector = connectors.find((c) => c.id === "farcaster");
+        if (farcasterConnector) {
+          connect({ connector: farcasterConnector });
+        }
+      }
+    } catch (error) {
+      console.error("Error requesting wallet:", error);
+    } finally {
+      setIsRequestingWallet(false);
+    }
+  };
 
   // Format wallet address to show first 6 and last 4 characters
   const formatAddress = (address: string) => {
@@ -85,20 +113,11 @@ export default function Home() {
 
             {/* Connect Wallet Button */}
             <button
-              onClick={() => {
-                if (!isConnected && connectors.length > 0) {
-                  const farcasterConnector = connectors.find(
-                    (c) => c.id === "farcaster"
-                  );
-                  if (farcasterConnector) {
-                    connect({ connector: farcasterConnector });
-                  }
-                }
-              }}
-              disabled={isConnected || isConnecting}
+              onClick={handleConnectWallet}
+              disabled={isConnected || isConnecting || isRequestingWallet}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
             >
-              {isConnecting ? (
+              {isConnecting || isRequestingWallet ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                   Connecting...
