@@ -17,51 +17,22 @@ import { Button } from "@/components/ui/button";
 import { useCreateMarket } from "@/hooks/use-vamos-contract";
 import { useAccount } from "wagmi";
 import { isAddress } from "viem";
-
-// Mock data for markets
-const MOCK_MARKETS = [
-  {
-    id: 1,
-    title: "Tennis Match: Alex vs Jason",
-    status: "BETS OPEN",
-    volume: 100.0,
-    icon: "🎾",
-    options: [
-      { name: "Alex", percentage: 80, color: "bg-green-400" },
-      { name: "Jason", percentage: 20, color: "bg-yellow-200" },
-    ],
-  },
-  {
-    id: 2,
-    title: "Tennis Match: Alex vs Jason",
-    status: "BETS OPEN",
-    volume: 100.0,
-    icon: "🎾",
-    options: [
-      { name: "Alex", percentage: 80, color: "bg-green-400" },
-      { name: "Jason", percentage: 20, color: "bg-yellow-200" },
-    ],
-  },
-  {
-    id: 3,
-    title: "Volleyball Match: Isa vs Dani",
-    status: "BETS CLOSED",
-    volume: 200.0,
-    icon: "🏐",
-    options: [
-      { name: "Isa", percentage: 60, color: "bg-pink-300" },
-      { name: "Dani", percentage: 40, color: "bg-purple-300" },
-    ],
-  },
-];
+import { useMarkets, transformMarketForUI } from "@/hooks/use-markets";
 
 export default function Markets() {
   const { isMiniAppReady, context } = useMiniApp();
-  const { address, isConnected } = useAccount();
+  const { address } = useAccount();
   const router = useRouter();
-  const [markets, setMarkets] = useState(MOCK_MARKETS);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState<string>("");
+
+  // Fetch markets from API
+  const {
+    data: apiMarkets,
+    isLoading: isLoadingMarkets,
+    error: marketsError,
+    refetch,
+  } = useMarkets();
 
   const {
     createMarket,
@@ -72,9 +43,11 @@ export default function Markets() {
     hash,
   } = useCreateMarket();
 
+  // Transform API markets to UI format
+  const markets = apiMarkets?.map(transformMarketForUI) || [];
+
   // Extract user data from context
   const user = context?.user;
-  const pfpUrl = user?.pfpUrl;
 
   // Formik form
   const formik = useFormik({
@@ -118,32 +91,8 @@ export default function Markets() {
         console.log("Market creation transaction submitted!");
         console.log("Transaction hash:", hash);
 
-        // Calculate equal percentage for all options
-        const equalPercentage = Math.floor(100 / validOptions.length);
-        const colors = [
-          "bg-green-400",
-          "bg-yellow-200",
-          "bg-pink-300",
-          "bg-purple-300",
-          "bg-blue-300",
-          "bg-red-300",
-        ];
-        const newMarket = {
-          id: markets.length + 1,
-          title: values.title,
-          status: "BETS OPEN",
-          volume: 0,
-          icon: "🎯",
-          options: validOptions.map((name, index) => ({
-            name,
-            percentage:
-              index === 0
-                ? 100 - equalPercentage * (validOptions.length - 1)
-                : equalPercentage,
-            color: colors[index % colors.length],
-          })),
-        };
-        setMarkets([...markets, newMarket]);
+        // Refetch markets after creating a new one
+        await refetch();
 
         // Close modal and reset form
         setIsModalOpen(false);
@@ -166,13 +115,37 @@ export default function Markets() {
     }
   };
 
-  if (!isMiniAppReady) {
+  if (!isMiniAppReady || isLoadingMarkets) {
     return (
       <main className="flex-1">
         <section className="flex items-center justify-center min-h-screen bg-[#111909]">
           <div className="w-full max-w-md mx-auto p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FEABEF] mx-auto mb-4"></div>
-            <p className="text-[#FCFDF5]">Loading...</p>
+            <p className="text-[#FCFDF5]">
+              {!isMiniAppReady ? "Loading..." : "Loading markets..."}
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  // Show error state if markets failed to load
+  if (marketsError) {
+    return (
+      <main className="flex-1 min-h-screen bg-[#111909]">
+        <section className="flex items-center justify-center min-h-screen">
+          <div className="w-full max-w-md mx-auto p-8 text-center">
+            <p className="text-red-400 mb-4">Error loading markets</p>
+            <p className="text-[#FCFDF5] text-sm mb-4">
+              {marketsError.message}
+            </p>
+            <Button
+              onClick={() => refetch()}
+              className="bg-[#FEABEF] hover:bg-[#ff9be0] text-black"
+            >
+              Try Again
+            </Button>
           </div>
         </section>
       </main>
@@ -184,62 +157,73 @@ export default function Markets() {
       {/* Markets List */}
       <section className="px-4 pb-24">
         <div className="max-w-2xl mx-auto space-y-4">
-          {markets.map((market) => (
-            <div
-              key={market.id}
-              className={`rounded-2xl p-5 hover:shadow-lg transition-shadow cursor-pointer ${
-                market.status === "BETS OPEN" ? "bg-[#FCFDF5]" : "bg-gray-100"
-              }`}
-              onClick={() => router.push(`/markets/${market.id}`)}
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-full bg-[#FEABEF] flex items-center justify-center flex-shrink-0 text-2xl">
-                  {market.icon}
-                </div>
-                <span
-                  className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap ${
-                    market.status === "BETS OPEN"
-                      ? "bg-[#FEABEF] text-black"
-                      : "bg-gray-300 text-gray-600"
-                  }`}
-                >
-                  {market.status}
-                </span>
-              </div>
-
-              {/* Title and Volume */}
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-black mb-1">
-                  {market.title}
-                </h3>
-                <p className="text-sm text-gray-600">Volume: {market.volume}</p>
-              </div>
-
-              {/* Options - Bar Chart Style */}
-              <div className="space-y-2">
-                {market.options.map((option, index) => (
-                  <div
-                    key={index}
-                    className="relative h-8 bg-gray-200 rounded-full overflow-hidden"
-                  >
-                    <div
-                      className={`h-full ${option.color} flex items-center px-3 transition-all duration-300`}
-                      style={{ width: `${option.percentage}%` }}
-                    />
-                    <div className="absolute inset-0 flex items-center px-3 justify-between pointer-events-none">
-                      <span className="text-sm font-normal text-black">
-                        {option.name}
-                      </span>
-                      <span className="text-sm font-normal text-black">
-                        {option.percentage}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {markets.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-[#FCFDF5] text-lg mb-2">No markets yet</p>
+              <p className="text-gray-400 text-sm">
+                Create the first prediction market!
+              </p>
             </div>
-          ))}
+          ) : (
+            markets.map((market) => (
+              <div
+                key={market.id}
+                className={`rounded-2xl p-5 hover:shadow-lg transition-shadow cursor-pointer ${
+                  market.status === "BETS OPEN" ? "bg-[#FCFDF5]" : "bg-gray-100"
+                }`}
+                onClick={() => router.push(`/markets/${market.id}`)}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 rounded-full bg-[#FEABEF] flex items-center justify-center flex-shrink-0 text-2xl">
+                    {market.icon}
+                  </div>
+                  <span
+                    className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap ${
+                      market.status === "BETS OPEN"
+                        ? "bg-[#FEABEF] text-black"
+                        : "bg-gray-300 text-gray-600"
+                    }`}
+                  >
+                    {market.status}
+                  </span>
+                </div>
+
+                {/* Title and Volume */}
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-black mb-1">
+                    {market.title}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Volume: {market.volume}
+                  </p>
+                </div>
+
+                {/* Options - Bar Chart Style */}
+                <div className="space-y-2">
+                  {market.options.map((option, index) => (
+                    <div
+                      key={index}
+                      className="relative h-8 bg-gray-200 rounded-full overflow-hidden"
+                    >
+                      <div
+                        className={`h-full ${option.color} flex items-center px-3 transition-all duration-300`}
+                        style={{ width: `${option.percentage}%` }}
+                      />
+                      <div className="absolute inset-0 flex items-center px-3 justify-between pointer-events-none">
+                        <span className="text-sm font-normal text-black">
+                          {option.name}
+                        </span>
+                        <span className="text-sm font-normal text-black">
+                          {option.percentage}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
