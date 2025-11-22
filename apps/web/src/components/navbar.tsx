@@ -4,18 +4,25 @@ import { LogOut, Wallet } from "lucide-react";
 import { useAccount, useDisconnect, useBalance } from "wagmi";
 import Image from "next/image";
 import { useMiniApp } from "@/contexts/miniapp-context";
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 export function Navbar() {
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { context } = useMiniApp();
-  const router = useRouter();
 
   // Get wallet balance
-  const { data: balance } = useBalance({
+  const { data: balance, isLoading: isLoadingBalance } = useBalance({
     address: address,
   });
+
+  // Debug logs
+  useEffect(() => {
+    console.log("Navbar - Address:", address);
+    console.log("Navbar - Balance:", balance);
+    console.log("Navbar - Is Loading Balance:", isLoadingBalance);
+  }, [address, balance, isLoadingBalance]);
 
   // Extract user data from context
   const user = context?.user;
@@ -34,8 +41,6 @@ export function Navbar() {
   const handleDisconnect = async () => {
     try {
       await disconnect();
-      // Redirect to home page after disconnect
-      router.push("/");
     } catch (error) {
       console.error("Error disconnecting:", error);
     }
@@ -70,36 +75,42 @@ export function Navbar() {
 
         {/* Right side - Wallet/Logout Icon */}
         <div className="flex items-center gap-3">
-          {isConnected && balance && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg">
+          {isConnected && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg">
               <Wallet className="h-4 w-4 text-gray-600" />
               <span className="text-sm font-medium text-gray-700">
-                {formatBalance(balance.formatted)} {balance.symbol}
+                {isLoadingBalance
+                  ? "..."
+                  : balance
+                  ? `${formatBalance(balance.formatted)} ${balance.symbol}`
+                  : "0.00"}
               </span>
             </div>
           )}
 
           {isConnected ? (
-            <button
+            <Button
+              variant="ghost"
               onClick={handleDisconnect}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-2"
               title="Logout"
             >
-              <LogOut className="h-5 w-5 text-gray-700" />
-              <span className="text-sm font-medium text-gray-700 hidden sm:inline">
+              <LogOut className="h-5 w-5" />
+              <span className="text-sm font-medium hidden sm:inline">
                 Logout
               </span>
-            </button>
+            </Button>
           ) : (
-            <button
-              className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            <Button
+              variant="ghost"
+              className="flex items-center gap-2"
               title="Connect Wallet"
             >
-              <Wallet className="h-5 w-5 text-gray-700" />
-              <span className="text-sm font-medium text-gray-700 hidden sm:inline">
+              <Wallet className="h-5 w-5" />
+              <span className="text-sm font-medium hidden sm:inline">
                 Connect
               </span>
-            </button>
+            </Button>
           )}
         </div>
       </div>

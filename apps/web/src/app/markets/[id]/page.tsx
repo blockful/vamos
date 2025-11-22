@@ -1,20 +1,24 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { Share2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Share2 } from "lucide-react";
 
 // Mock data - should match the data from markets page
 const MOCK_MARKETS = [
   {
     id: 1,
-    title: "Alex x Jason",
-    description: "a bet about a tennis match",
+    title: "Match: Alex x Jason",
+    description: "A bet about a tennis match",
+    judge: "isadorable.eth",
+    icon: "🎾",
+    status: "Betting Open",
+    totalVolume: 100,
     options: [
       {
         name: "Alex",
         percentage: 65,
-        totalAmount: 300000,
+        totalAmount: 50,
         bets: [
           { user: "User 1", amount: 30, avatar: null },
           { user: "User 2", amount: 50, avatar: null },
@@ -24,7 +28,7 @@ const MOCK_MARKETS = [
       {
         name: "Jason",
         percentage: 35,
-        totalAmount: 100000,
+        totalAmount: 50,
         bets: [
           { user: "User 4", amount: 30, avatar: null },
           { user: "User 5", amount: 20, avatar: null },
@@ -32,43 +36,69 @@ const MOCK_MARKETS = [
         ],
       },
     ],
+    chartData: [
+      { timestamp: 1, option1: 45, option2: 55 },
+      { timestamp: 2, option1: 52, option2: 48 },
+      { timestamp: 3, option1: 48, option2: 52 },
+      { timestamp: 4, option1: 55, option2: 45 },
+      { timestamp: 5, option1: 58, option2: 42 },
+      { timestamp: 6, option1: 53, option2: 47 },
+      { timestamp: 7, option1: 60, option2: 40 },
+      { timestamp: 8, option1: 65, option2: 35 },
+    ],
   },
   {
     id: 2,
-    title: "Maria x Sofia",
-    description: "a bet about a basketball match",
+    title: "Match: Maria x Sofia",
+    description: "A bet about a basketball match",
+    judge: "basketballjudge.eth",
+    icon: "🏀",
+    status: "Betting Open",
+    totalVolume: 85,
     options: [
       {
         name: "Maria",
         percentage: 48,
-        totalAmount: 240000,
+        totalAmount: 40,
         bets: [{ user: "User 1", amount: 30, avatar: null }],
       },
       {
         name: "Sofia",
         percentage: 52,
-        totalAmount: 260000,
+        totalAmount: 45,
         bets: [{ user: "User 2", amount: 30, avatar: null }],
       },
+    ],
+    chartData: [
+      { timestamp: 1, option1: 50, option2: 50 },
+      { timestamp: 2, option1: 48, option2: 52 },
     ],
   },
   {
     id: 3,
-    title: "Bruno x Lucas",
-    description: "a bet about a soccer match",
+    title: "Match: Bruno x Lucas",
+    description: "A bet about a soccer match",
+    judge: "soccerref.eth",
+    icon: "⚽",
+    status: "Betting Closed",
+    totalVolume: 120,
     options: [
       {
         name: "Bruno",
         percentage: 70,
-        totalAmount: 350000,
+        totalAmount: 84,
         bets: [{ user: "User 1", amount: 30, avatar: null }],
       },
       {
         name: "Lucas",
         percentage: 30,
-        totalAmount: 150000,
+        totalAmount: 36,
         bets: [{ user: "User 2", amount: 30, avatar: null }],
       },
+    ],
+    chartData: [
+      { timestamp: 1, option1: 60, option2: 40 },
+      { timestamp: 2, option1: 70, option2: 30 },
     ],
   },
 ];
@@ -76,6 +106,7 @@ const MOCK_MARKETS = [
 export default function MarketDetails() {
   const { isMiniAppReady } = useMiniApp();
   const params = useParams();
+  const router = useRouter();
   const marketId = parseInt(params.id as string);
 
   const market = MOCK_MARKETS.find((m) => m.id === marketId);
@@ -105,95 +136,163 @@ export default function MarketDetails() {
 
   return (
     <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <section className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex items-start gap-4">
-              {/* Market Icon */}
-              <div className="w-16 h-16 rounded-full bg-gray-300 flex-shrink-0"></div>
+      <section className="max-w-2xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-3xl shadow-xl p-6 space-y-6">
+          {/* Header with Back Button, Icon, Title, Description, Judge, and Share */}
+          <div className="flex items-start gap-4">
+            {/* Back Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.back()}
+              className="flex-shrink-0"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </Button>
 
-              {/* Title and Description */}
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                  {market.title}
-                </h1>
-                <p className="text-gray-600">{market.description}</p>
-              </div>
+            {/* Market Icon */}
+            <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-4xl flex-shrink-0">
+              {market.icon}
+            </div>
+
+            {/* Info Section */}
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-gray-900 mb-1">
+                {market.title}
+              </h1>
+              <p className="text-sm text-gray-600 mb-1">{market.description}</p>
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">Judge:</span> {market.judge}
+              </p>
             </div>
 
             {/* Share Button */}
-            <button className="flex items-center gap-2 text-orange-500 hover:text-orange-600 transition-colors">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-1 text-orange-500 hover:text-orange-600 flex-shrink-0"
+            >
               <span className="text-sm font-medium">share</span>
-              <Share2 className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* Options Buttons */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <Button className="bg-green-500 hover:bg-green-600 text-white font-bold py-6 text-lg">
-              {market.options[0].name}
-            </Button>
-            <Button className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-6 text-lg">
-              {market.options[1].name}
+              <Share2 className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Total Amounts and Progress Bar */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-lg font-semibold">
-                ${(market.options[0].totalAmount / 1000).toFixed(0)}k
-              </span>
-              <span className="text-sm text-gray-500">progress bar</span>
-              <span className="text-lg font-semibold">
-                ${(market.options[1].totalAmount / 1000).toFixed(0)}k
-              </span>
+          {/* Bet Volume and Status */}
+          <div className="bg-gray-100 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">
+                BET VOLUME
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                ${market.totalVolume}
+              </p>
             </div>
-            <div className="flex h-3 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="bg-green-500"
-                style={{ width: `${market.options[0].percentage}%` }}
-              ></div>
-              <div
-                className="bg-yellow-500"
-                style={{ width: `${market.options[1].percentage}%` }}
-              ></div>
+            <div className="bg-gray-300 px-4 py-2 rounded-lg">
+              <p className="text-sm font-medium text-gray-700">
+                {market.status}
+              </p>
             </div>
           </div>
 
-          {/* Bets Lists */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* Option A Bets */}
-            <div className="space-y-3">
-              {market.options[0].bets.map((bet, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-300 flex-shrink-0"></div>
-                  <div>
-                    <p className="font-medium text-gray-900">{bet.user}</p>
-                    <p className="text-sm text-gray-600">${bet.amount}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+          {/* Chart Placeholder */}
+          <div className="bg-gray-100 rounded-2xl p-4 h-48 relative overflow-hidden">
+            {/* Simple SVG Line Chart */}
+            <svg
+              className="w-full h-full"
+              viewBox="0 0 400 160"
+              preserveAspectRatio="none"
+            >
+              {/* Grid lines */}
+              <line
+                x1="0"
+                y1="40"
+                x2="400"
+                y2="40"
+                stroke="#e5e7eb"
+                strokeWidth="1"
+              />
+              <line
+                x1="0"
+                y1="80"
+                x2="400"
+                y2="80"
+                stroke="#e5e7eb"
+                strokeWidth="1"
+              />
+              <line
+                x1="0"
+                y1="120"
+                x2="400"
+                y2="120"
+                stroke="#e5e7eb"
+                strokeWidth="1"
+              />
 
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300"></div>
+              {/* Option 1 Line (Gray) */}
+              <polyline
+                fill="none"
+                stroke="#9ca3af"
+                strokeWidth="3"
+                points={market.chartData
+                  .map((point, index) => {
+                    const x = (index / (market.chartData.length - 1)) * 400;
+                    const y = 160 - (point.option1 / 100) * 160;
+                    return `${x},${y}`;
+                  })
+                  .join(" ")}
+              />
 
-              {/* Option B Bets */}
-              <div className="pl-6 space-y-3">
-                {market.options[1].bets.map((bet, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-300 flex-shrink-0"></div>
-                    <div>
-                      <p className="font-medium text-gray-900">{bet.user}</p>
-                      <p className="text-sm text-gray-600">${bet.amount}</p>
-                    </div>
-                  </div>
-                ))}
+              {/* Option 2 Line (Yellow) */}
+              <polyline
+                fill="none"
+                stroke="#fbbf24"
+                strokeWidth="3"
+                points={market.chartData
+                  .map((point, index) => {
+                    const x = (index / (market.chartData.length - 1)) * 400;
+                    const y = 160 - (point.option2 / 100) * 160;
+                    return `${x},${y}`;
+                  })
+                  .join(" ")}
+              />
+            </svg>
+          </div>
+
+          {/* Betting Options */}
+          <div className="space-y-3">
+            {/* Option 1 */}
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/markets/${marketId}/0`)}
+              className="w-full bg-gray-200 hover:bg-gray-300 transition-colors rounded-2xl p-4 h-auto flex items-center justify-between group border-0"
+            >
+              <div className="text-left">
+                <p className="text-lg font-bold text-gray-900">
+                  {market.options[0].name}
+                </p>
+                <p className="text-sm text-gray-600">
+                  ${market.options[0].totalAmount}
+                </p>
               </div>
-            </div>
+              <ChevronRight className="h-6 w-6 text-gray-600 group-hover:text-gray-800" />
+            </Button>
+
+            {/* Option 2 */}
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/markets/${marketId}/1`)}
+              className="w-full bg-yellow-400 hover:bg-yellow-500 transition-colors rounded-2xl p-4 h-auto flex items-center justify-between group border-0"
+            >
+              <div className="text-left">
+                <p className="text-lg font-bold text-gray-900">
+                  {market.options[1].name}
+                </p>
+                <p className="text-sm text-gray-700">
+                  ${market.options[1].totalAmount}
+                </p>
+              </div>
+              <ChevronRight className="h-6 w-6 text-gray-700 group-hover:text-gray-900" />
+            </Button>
           </div>
         </div>
       </section>
