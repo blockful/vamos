@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export function Navbar() {
   const { address, isConnected, chain } = useAccount();
@@ -17,6 +18,21 @@ export function Navbar() {
     address: address,
     chainId: chain?.id,
   });
+
+  // Monitor connection status and redirect if disconnected
+  useEffect(() => {
+    if (
+      !isConnected &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/"
+    ) {
+      // If not connected and not on home page, check if we should redirect
+      const wasDisconnected = sessionStorage.getItem("walletDisconnected");
+      if (wasDisconnected === "true") {
+        sessionStorage.removeItem("walletDisconnected");
+      }
+    }
+  }, [isConnected]);
 
   // Extract user data from context
   const user = context?.user;
@@ -34,11 +50,37 @@ export function Navbar() {
   // Handle disconnect
   const handleDisconnect = async () => {
     try {
+      // Mark that we're intentionally disconnecting
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("walletDisconnected", "true");
+      }
+
+      // Force disconnect from all connectors
       disconnect();
-      // Redirect to home page after disconnect
-      router.push("/");
+
+      // Clear any persisted wallet state
+      if (typeof window !== "undefined") {
+        // Clear wagmi storage
+        localStorage.removeItem("wagmi.store");
+        localStorage.removeItem("wagmi.wallet");
+        localStorage.removeItem("wagmi.connected");
+
+        // Clear any other wallet-related storage
+        Object.keys(localStorage).forEach((key) => {
+          if (key.includes("wagmi") || key.includes("wallet")) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+
+      // Small delay to ensure state is cleared before redirect
+      setTimeout(() => {
+        router.push("/");
+      }, 100);
     } catch (error) {
       console.error("Error disconnecting:", error);
+      // Still try to redirect even if there's an error
+      router.push("/");
     }
   };
 

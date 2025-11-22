@@ -14,17 +14,6 @@ import {
 } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 
-export const supportedChainIds = [
-  celo.id,
-  celoAlfajores.id,
-  mainnet.id,
-  sepolia.id,
-  base.id,
-  baseSepolia.id,
-];
-
-export type SupportedChainIds = 1 | 42220 | 44787 | 11155111 | 8453 | 84532;
-
 const config = createConfig({
   chains: [celo, celoAlfajores, mainnet, sepolia, base, baseSepolia],
   connectors: [farcasterMiniApp(), injected()],
@@ -36,6 +25,9 @@ const config = createConfig({
     [base.id]: http(),
     [baseSepolia.id]: http(),
   },
+  // Disable automatic reconnection
+  ssr: false,
+  multiInjectedProviderDiscovery: false,
 });
 
 const queryClient = new QueryClient();
@@ -46,7 +38,7 @@ export default function FrameWalletProvider({
   children: ReactNode;
 }) {
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={config} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </WagmiProvider>
   );

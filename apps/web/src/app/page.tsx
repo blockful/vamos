@@ -12,12 +12,20 @@ export default function Home() {
   const { context, isMiniAppReady } = useMiniApp();
   const router = useRouter();
   const [isRequestingWallet, setIsRequestingWallet] = useState(false);
-  const [hasAttemptedAutoConnect, setHasAttemptedAutoConnect] = useState(false);
   const [showWalletOptions, setShowWalletOptions] = useState(false);
 
   // Wallet connection hooks
   const { address, isConnected, isConnecting } = useAccount();
   const { connect, connectors } = useConnect();
+
+  // Check if we're on the home page after disconnect
+  useEffect(() => {
+    if (isMiniAppReady && !isConnected) {
+      // Clear any stale wallet options state
+      setShowWalletOptions(false);
+      setIsRequestingWallet(false);
+    }
+  }, [isMiniAppReady, isConnected]);
 
   // Auto-connect wallet when miniapp is ready (only once)
   // Only auto-connect Farcaster if in Farcaster context
