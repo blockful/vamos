@@ -25,19 +25,33 @@ contract Vamos is ReentrancyGuard, Ownable {
     uint256 public constant MAX_TOTAL_FEE_RATE = 1000; // 10% maximum combined
 
     struct Market {
+        /// @notice Address of the user who created this market
         address creator;
+        /// @notice Address authorized to resolve this market and declare the winning outcome
         address judge;
+        /// @notice The question or description of what is being predicted
         string question;
+        /// @notice Total number of possible outcomes for this market
         uint256 numOutcomes;
+        /// @notice Array of outcome descriptions (e.g., ["Yes", "No"] or ["Team A", "Team B", "Draw"])
         string[] outcomes;
+        /// @notice Total amount of tokens predicted across all outcomes in this market
         uint256 totalPool;
+        /// @notice Whether the market has been resolved by the judge
         bool resolved;
+        /// @notice The ID of the outcome that won (only valid after resolution)
         uint256 winningOutcome;
+        /// @notice Timestamp when the market was created
         uint256 createdAt;
+        /// @notice Total pool amount after protocol and creator fees are deducted (distributed to winners)
         uint256 poolAfterFees;
+        /// @notice Amount of fees collected for the protocol from this market
         uint256 protocolFeeAmount;
+        /// @notice Amount of fees collected for the market creator from this market
         uint256 creatorFeeAmount;
+        /// @notice True if the winning outcome had no predictions (triggers refunds for all users)
         bool noWinners;
+        /// @notice True if the market is paused and no new predictions can be placed
         bool paused;
     }
 
@@ -67,6 +81,12 @@ contract Vamos is ReentrancyGuard, Ownable {
     mapping(uint256 => mapping(address => bool)) public hasClaimed; // marketId => user => claimed
 
     // Events
+    /// @notice Emitted when a new prediction market is created
+    /// @param marketId The unique identifier for the newly created market
+    /// @param creator The address of the user who created the market
+    /// @param question The question or description of what is being predicted
+    /// @param judge The address authorized to resolve the market
+    /// @param outcomes Array of possible outcome descriptions
     event MarketCreated(
         uint256 indexed marketId,
         address indexed creator,
@@ -75,6 +95,11 @@ contract Vamos is ReentrancyGuard, Ownable {
         string[] outcomes
     );
 
+    /// @notice Emitted when a user places a prediction on a specific outcome
+    /// @param marketId The ID of the market where the prediction was placed
+    /// @param user The address of the user placing the prediction
+    /// @param outcomeId The ID of the outcome being predicted
+    /// @param amount The amount of tokens predicted
     event PredictionPlaced(
         uint256 indexed marketId,
         address indexed user,
@@ -82,42 +107,93 @@ contract Vamos is ReentrancyGuard, Ownable {
         uint256 amount
     );
 
+    /// @notice Emitted when a market is resolved with a winning outcome
+    /// @param marketId The ID of the market being resolved
+    /// @param winningOutcome The ID of the outcome that won
     event MarketResolved(
         uint256 indexed marketId,
         uint256 indexed winningOutcome
     );
 
+    /// @notice Emitted when a user claims their winnings from a resolved market
+    /// @param marketId The ID of the market from which winnings are claimed
+    /// @param user The address of the user claiming winnings
+    /// @param amount The amount of tokens claimed as winnings
     event WinningsClaimed(
         uint256 indexed marketId,
         address indexed user,
         uint256 amount
     );
     
+    /// @notice Emitted when fees are distributed after market resolution
+    /// @param marketId The ID of the market from which fees are distributed
+    /// @param protocolFee The amount of tokens collected as protocol fee
+    /// @param creatorFee The amount of tokens collected as creator fee
     event FeesDistributed(
         uint256 indexed marketId,
         uint256 protocolFee,
         uint256 creatorFee
     );
     
+    /// @notice Emitted when fee rates are updated by the owner
+    /// @param protocolFeeRate The new protocol fee rate in basis points
+    /// @param creatorFeeRate The new creator fee rate in basis points
     event FeeRatesUpdated(uint256 protocolFeeRate, uint256 creatorFeeRate);
+    
+    /// @notice Emitted when a user claims a refund from a market with no winners
+    /// @param marketId The ID of the market from which refund is claimed
+    /// @param user The address of the user claiming the refund
+    /// @param amount The amount of tokens refunded
     event RefundClaimed(uint256 indexed marketId, address indexed user, uint256 amount);
+    
+    /// @notice Emitted when a market is paused by the judge
+    /// @param marketId The ID of the market that was paused
     event MarketPaused(uint256 indexed marketId);
 
     // Errors
+    /// @notice Thrown when attempting to create a market with an invalid judge address (zero address)
     error InvalidJudge();
+    
+    /// @notice Thrown when attempting to create a market with less than 2 outcomes
     error InvalidNumOutcomes();
+    
+    /// @notice Thrown when the outcomes array length doesn't match the expected number
     error InvalidOutcomesLength();
+    
+    /// @notice Thrown when trying to interact with a market that doesn't exist
     error MarketNotFound();
+    
+    /// @notice Thrown when attempting to resolve or place predictions on an already resolved market
     error MarketAlreadyResolved();
+    
+    /// @notice Thrown when an invalid outcome ID is provided (out of range)
     error InvalidOutcome();
+    
+    /// @notice Thrown when attempting to place a prediction with zero amount
     error PredictionAmountZero();
+    
+    /// @notice Thrown when attempting to claim winnings or refunds from an unresolved market
     error MarketNotResolved();
+    
+    /// @notice Thrown when a non-judge address attempts to perform judge-only actions
     error OnlyJudge();
+    
+    /// @notice Thrown when a user attempts to claim winnings or refunds they've already claimed
     error AlreadyClaimed();
+    
+    /// @notice Thrown when a user attempts to claim winnings but has no winning predictions
     error NoWinnings();
+    
+    /// @notice Thrown when setting fee rates that exceed the maximum allowed values
     error InvalidFeeRate();
+    
+    /// @notice Thrown when attempting to claim refund from a market that has winners
     error NotNoWinnerMarket();
+    
+    /// @notice Thrown when attempting to claim refund but the user made no predictions
     error NoPredictions();
+    
+    /// @notice Thrown when attempting to place predictions on a paused market
     error MarketIsPaused();
 
     /**
