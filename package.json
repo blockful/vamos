@@ -4,11 +4,6 @@
   "description": "Vamos Predictable Market",
   "private": true,
   "scripts": {
-    "build": "turbo build",
-    "dev": "turbo dev",
-    "lint": "turbo lint",
-    "clean": "turbo clean",
-    "type-check": "turbo type-check",
     "contracts:build": "pnpm --filter @vamos/contracts build",
     "contracts:test": "pnpm --filter @vamos/contracts test",
     "contracts:deploy:token": "pnpm --filter @vamos/contracts deploy:token",
