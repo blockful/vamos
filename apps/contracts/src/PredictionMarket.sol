@@ -38,6 +38,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         uint256 protocolFeeAmount;
         uint256 creatorFeeAmount;
         bool noWinners;
+        bool paused;
     }
 
     // Market ID counter
@@ -100,6 +101,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     
     event FeeRatesUpdated(uint256 protocolFeeRate, uint256 creatorFeeRate);
     event RefundClaimed(uint256 indexed marketId, address indexed user, uint256 amount);
+    event MarketPaused(uint256 indexed marketId);
 
     // Errors
     error InvalidResolver();
@@ -116,6 +118,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     error InvalidFeeRate();
     error NotNoWinnerMarket();
     error NoPredictions();
+    error MarketIsPaused();
 
     /**
      * @notice Set fee rates for both protocol and creator
@@ -162,7 +165,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
             poolAfterFees: 0,
             protocolFeeAmount: 0,
             creatorFeeAmount: 0,
-            noWinners: false
+            noWinners: false,
+            paused: false
         });
 
         emit MarketCreated(
@@ -172,6 +176,23 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
             resolver,
             outcomes
         );
+    }
+
+    /**
+     * @notice Pause a market to prevent new predictions
+     * @param marketId ID of the market to pause
+     */
+    function pauseMarket(uint256 marketId) external {
+        Market storage market = markets[marketId];
+
+        if (market.createdAt == 0) revert MarketNotFound();
+        if (msg.sender != market.resolver) revert OnlyResolver();
+        if (market.resolved) revert MarketAlreadyResolved();
+        if (market.paused) revert MarketIsPaused();
+
+        market.paused = true;
+
+        emit MarketPaused(marketId);
     }
 
     /**
@@ -189,6 +210,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         
         if (market.createdAt == 0) revert MarketNotFound();
         if (market.resolved) revert MarketAlreadyResolved();
+        if (market.paused) revert MarketIsPaused();
         if (outcomeId >= market.numOutcomes) revert InvalidOutcome();
         if (amount == 0) revert PredictionAmountZero();
 

@@ -583,5 +583,217 @@ contract PredictionMarketTest is Test {
         market.setFees(100, 100);
         assertEq(market.protocolFeeRate(), 100, "New owner can update fees");
     }
+    
+    // ============================================
+    // Market Pausing Tests
+    // ============================================
+    
+    function testResolverCanPauseMarket() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        // Verify market is not paused initially
+        PredictionMarket.Market memory marketData = market.getMarket(marketId);
+        assertFalse(marketData.paused, "Market should not be paused initially");
+        
+        // Resolver pauses the market
+        vm.prank(resolver);
+        market.pauseMarket(marketId);
+        
+        // Verify market is now paused
+        marketData = market.getMarket(marketId);
+        assertTrue(marketData.paused, "Market should be paused after pause");
+    }
+    
+    function testNonResolverCannotPauseMarket() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        // User1 tries to pause the market - should fail
+        vm.prank(user1);
+        vm.expectRevert();
+        market.pauseMarket(marketId);
+        
+        // Creator tries to pause the market - should fail
+        vm.prank(creator);
+        vm.expectRevert();
+        market.pauseMarket(marketId);
+        
+        // Owner tries to pause the market - should fail
+        vm.prank(owner);
+        vm.expectRevert();
+        market.pauseMarket(marketId);
+    }
+    
+    function testCannotPlacePredictionOnPausedMarket() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        // User1 places prediction before pause - should succeed
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 50 ether);
+        vm.stopPrank();
+        
+        // Resolver pauses the market
+        vm.prank(resolver);
+        market.pauseMarket(marketId);
+        
+        // User1 tries to place another prediction - should fail
+        vm.prank(user1);
+        vm.expectRevert();
+        market.placePrediction(marketId, 0, 50 ether);
+        
+        // User2 tries to place prediction - should fail
+        vm.startPrank(user2);
+        token.approve(address(market), 100 ether);
+        vm.expectRevert();
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+    }
+    
+    function testPausedMarketCanStillBeResolved() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        // User1 places prediction
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // Resolver pauses the market
+        vm.prank(resolver);
+        market.pauseMarket(marketId);
+        
+        // Resolver resolves the paused market - should succeed
+        vm.prank(resolver);
+        market.resolveMarket(marketId, 0);
+        
+        // Verify market is resolved
+        PredictionMarket.Market memory marketData = market.getMarket(marketId);
+        assertTrue(marketData.resolved, "Market should be resolved");
+        assertTrue(marketData.paused, "Market should still show as paused");
+    }
+    
+    function testCannotPauseAlreadyResolvedMarket() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        // User1 places prediction
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // Resolver resolves the market
+        vm.prank(resolver);
+        market.resolveMarket(marketId, 0);
+        
+        // Try to pause already resolved market - should fail
+        vm.prank(resolver);
+        vm.expectRevert();
+        market.pauseMarket(marketId);
+    }
+    
+    function testCannotPauseAlreadyPausedMarket() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", resolver, outcomes);
+        vm.stopPrank();
+        
+        // Resolver pauses the market
+        vm.prank(resolver);
+        market.pauseMarket(marketId);
+        
+        // Try to pause again - should fail
+        vm.prank(resolver);
+        vm.expectRevert();
+        market.pauseMarket(marketId);
+    }
+    
+    function testFrontrunningPreventionScenario() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Will it happen?", resolver, outcomes);
+        vm.stopPrank();
+        
+        // User1 places 100 tokens on outcome 0
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // User2 places 50 tokens on outcome 1
+        vm.startPrank(user2);
+        token.approve(address(market), 50 ether);
+        market.placePrediction(marketId, 1, 50 ether);
+        vm.stopPrank();
+        
+        // Total pool: 150 ether
+        // Outcome 0 pool: 100 ether
+        // Outcome 1 pool: 50 ether
+        
+        // Resolver decides outcome 1 will win and pauses the market first
+        vm.prank(resolver);
+        market.pauseMarket(marketId);
+        
+        // User1 tries to frontrun by placing more on outcome 1 - should fail
+        vm.startPrank(user1);
+        token.approve(address(market), 500 ether);
+        vm.expectRevert();
+        market.placePrediction(marketId, 1, 500 ether);
+        vm.stopPrank();
+        
+        // Resolver resolves to outcome 1
+        vm.prank(resolver);
+        market.resolveMarket(marketId, 1);
+        
+        // User2 should be the only winner with their 50 tokens
+        // Total: 150, Protocol fee: 3 (2%), Creator fee: 4.5 (3%), Pool after fees: 142.5
+        // User2 gets all of it since they're the only one on outcome 1
+        uint256 user2BalanceBefore = token.balanceOf(user2);
+        vm.prank(user2);
+        market.claimWinnings(marketId);
+        uint256 user2Received = token.balanceOf(user2) - user2BalanceBefore;
+        
+        assertEq(user2Received, 142.5 ether, "User2 should receive entire pool after fees");
+        
+        // User1 should have no winnings on outcome 1
+        vm.prank(user1);
+        vm.expectRevert();
+        market.claimWinnings(marketId);
+    }
 }
 
