@@ -1,15 +1,13 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
-import { sdk } from "@farcaster/frame-sdk";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useAccount, useConnect } from "wagmi";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const { context, isMiniAppReady } = useMiniApp();
-  const [isAddingMiniApp, setIsAddingMiniApp] = useState(false);
-  const [addMiniAppMessage, setAddMiniAppMessage] = useState<string | null>(
-    null
-  );
+  const router = useRouter();
 
   // Wallet connection hooks
   const { address, isConnected, isConnecting } = useAccount();
@@ -30,13 +28,16 @@ export default function Home() {
     }
   }, [isMiniAppReady, isConnected, isConnecting, connectors, connect]);
 
+  // Redirect to markets when connected
+  useEffect(() => {
+    if (isConnected) {
+      router.push("/markets");
+    }
+  }, [isConnected, router]);
+
   // Extract user data from context
   const user = context?.user;
-  // Use connected wallet address if available, otherwise fall back to user custody/verification
-  const walletAddress =
-    address || user?.custody || user?.verifications?.[0] || "0x1e4B...605B";
   const displayName = user?.displayName || user?.username || "User";
-  const username = user?.username || "@user";
   const pfpUrl = user?.pfpUrl;
 
   // Format wallet address to show first 6 and last 4 characters
@@ -61,126 +62,66 @@ export default function Home() {
   return (
     <main className="flex-1">
       <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="w-full max-w-md mx-auto p-8 text-center">
-          {/* Welcome Header */}
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome</h1>
-
-          {/* Status Message */}
-          <p className="text-lg text-gray-600 mb-6">You are signed in!</p>
-
-          {/* User Wallet Address */}
-          <div className="mb-8">
-            <div className="bg-white/20 backdrop-blur-sm px-4 py-3 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-600 font-medium">
-                  Wallet Status
-                </span>
-                <div
-                  className={`flex items-center gap-1 text-xs ${
-                    isConnected
-                      ? "text-green-600"
-                      : isConnecting
-                      ? "text-yellow-600"
-                      : "text-gray-500"
-                  }`}
-                >
-                  <div
-                    className={`w-2 h-2 rounded-full ${
-                      isConnected
-                        ? "bg-green-500"
-                        : isConnecting
-                        ? "bg-yellow-500"
-                        : "bg-gray-400"
-                    }`}
-                  ></div>
-                  {isConnected
-                    ? "Connected"
-                    : isConnecting
-                    ? "Connecting..."
-                    : "Disconnected"}
-                </div>
-              </div>
-              <p className="text-sm text-gray-700 font-mono">
-                {formatAddress(walletAddress)}
-              </p>
-            </div>
-          </div>
-
-          {/* User Profile Section */}
-          <div className="mb-8">
-            {/* Profile Avatar */}
-            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center overflow-hidden">
+        <div className="w-full max-w-md mx-auto p-8">
+          <div className="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center">
+            {/* Profile Picture */}
+            <div className="w-32 h-32 mb-6 rounded-full overflow-hidden border-4 border-gray-200">
               {pfpUrl ? (
-                <img
+                <Image
                   src={pfpUrl}
                   alt="Profile"
-                  className="w-full h-full object-cover rounded-full"
+                  width={128}
+                  height={128}
+                  className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center">
-                  <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
+                  <span className="text-white text-4xl font-bold">
+                    {displayName.charAt(0).toUpperCase()}
+                  </span>
                 </div>
               )}
             </div>
 
-            {/* Profile Info */}
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                {displayName}
-              </h2>
-              <p className="text-gray-500">
-                {username.startsWith("@") ? username : `@${username}`}
-              </p>
-            </div>
-          </div>
-
-          {/* Add Miniapp Button */}
-          <div className="mb-6">
+            {/* Connect Wallet Button */}
             <button
-              onClick={async () => {
-                if (isAddingMiniApp) return;
-
-                setIsAddingMiniApp(true);
-                setAddMiniAppMessage(null);
-
-                try {
-                  await sdk.actions.addMiniApp();
-                  setAddMiniAppMessage("✅ Miniapp added successfully!");
-                } catch (error: any) {
-                  console.error("Add miniapp error:", error);
-                  if (error?.message?.includes("domain")) {
-                    setAddMiniAppMessage(
-                      "⚠️ This miniapp can only be added from its official domain"
-                    );
-                  } else {
-                    setAddMiniAppMessage(
-                      "❌ Failed to add miniapp. Please try again."
-                    );
+              onClick={() => {
+                if (!isConnected && connectors.length > 0) {
+                  const farcasterConnector = connectors.find(
+                    (c) => c.id === "farcaster"
+                  );
+                  if (farcasterConnector) {
+                    connect({ connector: farcasterConnector });
                   }
-                } finally {
-                  setIsAddingMiniApp(false);
                 }
               }}
-              disabled={isAddingMiniApp}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+              disabled={isConnected || isConnecting}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
             >
-              {isAddingMiniApp ? (
+              {isConnecting ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Adding...
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Connecting...
+                </>
+              ) : isConnected ? (
+                <>
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  Connected
                 </>
               ) : (
-                <>
-                  <span>📱</span>
-                  Add Miniapp
-                </>
+                "Connect Wallet"
               )}
             </button>
 
-            {/* Add Miniapp Status Message */}
-            {addMiniAppMessage && (
-              <div className="mt-3 p-3 bg-white/30 backdrop-blur-sm rounded-lg">
-                <p className="text-sm text-gray-700">{addMiniAppMessage}</p>
+            {/* Wallet Address (shown when connected) */}
+            {isConnected && address && (
+              <div className="mt-4 w-full">
+                <div className="bg-gray-50 rounded-lg p-4 text-center">
+                  <p className="text-xs text-gray-500 mb-1">Wallet Address</p>
+                  <p className="text-sm font-mono text-gray-700">
+                    {formatAddress(address)}
+                  </p>
+                </div>
               </div>
             )}
           </div>
