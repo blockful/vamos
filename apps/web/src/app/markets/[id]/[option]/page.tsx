@@ -13,7 +13,8 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { usePlacePrediction } from "@/hooks/use-vamos-contract";
 
 // Mock data - should match the data from market details page
 const MOCK_MARKETS = [
@@ -157,8 +158,17 @@ export default function OptionDetails() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
+  const { placePrediction, isPending, isConfirming, isConfirmed, error } =
+    usePlacePrediction();
+
   const market = MOCK_MARKETS.find((m) => m.id === marketId);
   const option = market?.options[optionId];
+
+  useEffect(() => {
+    if (isConfirmed) {
+      setShowConfirmation(true);
+    }
+  }, [isConfirmed]);
 
   const handleIncrement = () => setBetAmount((prev) => prev + 1);
   const handleDecrement = () => setBetAmount((prev) => Math.max(1, prev - 1));
@@ -186,14 +196,22 @@ export default function OptionDetails() {
     }
   };
 
-  const handleConfirmBet = () => {
+  const handleConfirmBet = async () => {
     // Ensure minimum value before confirming
     if (betAmount < 1) {
       setBetAmount(1);
       return;
     }
-    // Show confirmation view in the same drawer
-    setShowConfirmation(true);
+
+    try {
+      await placePrediction(
+        BigInt(marketId),
+        BigInt(optionId),
+        BigInt(betAmount)
+      );
+    } catch (err) {
+      console.error("Error placing prediction:", err);
+    }
   };
 
   const handleCloseConfirmation = () => {
@@ -447,10 +465,18 @@ export default function OptionDetails() {
                     <DrawerFooter>
                       <Button
                         onClick={handleConfirmBet}
-                        className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-6 text-lg rounded-2xl"
+                        disabled={isPending || isConfirming || betAmount < 1}
+                        className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-6 text-lg rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Confirm bet
+                        {isPending || isConfirming
+                          ? "Processing..."
+                          : "Confirm bet"}
                       </Button>
+                      {error && (
+                        <p className="text-sm text-red-500 text-center mt-2">
+                          Error: {error.message}
+                        </p>
+                      )}
                     </DrawerFooter>
                   </>
                 ) : (

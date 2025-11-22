@@ -7,16 +7,16 @@ import "../src/Vamos.sol";
 /**
  * @title Deploy
  * @notice Simple deployment script for Vamos contract
- * @dev Set PREDICTION_TOKEN, PROTOCOL_FEE_RATE, and CREATOR_FEE_RATE environment variables
+ * @dev Set TOKEN_ADDRESS, PROTOCOL_FEE_RATE, and CREATOR_FEE_RATE environment variables
  */
 contract Deploy is Script {
     function run() external {
         // Get configuration from environment variables
-        address predictionToken = vm.envOr("PREDICTION_TOKEN", address(0));
+        address predictionToken = vm.envOr("TOKEN_ADDRESS", address(0));
         uint256 protocolFeeRate = vm.envOr("PROTOCOL_FEE_RATE", uint256(200)); // Default: 2%
         uint256 creatorFeeRate = vm.envOr("CREATOR_FEE_RATE", uint256(300)); // Default: 3%
         
-        require(predictionToken != address(0), "PREDICTION_TOKEN not set");
+        require(predictionToken != address(0), "TOKEN_ADDRESS not set");
         
         vm.startBroadcast();
         

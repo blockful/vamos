@@ -3,9 +3,7 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useState } from "react";
 import { useFormik } from "formik";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
-import Image from "next/image";
-import { useAccount } from "wagmi";
+import { Plus, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { useCreateMarket } from "@/hooks/use-vamos-contract";
+import { useAccount } from "wagmi";
+import { isAddress } from "viem";
 
 // Mock data for markets
 const MOCK_MARKETS = [
@@ -30,7 +31,7 @@ const MOCK_MARKETS = [
       { name: "Jason", percentage: 20, color: "bg-yellow-200" },
     ],
   },
-  { 
+  {
     id: 2,
     title: "Tennis Match: Alex vs Jason",
     status: "BETS OPEN",
@@ -60,6 +61,16 @@ export default function Markets() {
   const router = useRouter();
   const [markets, setMarkets] = useState(MOCK_MARKETS);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formError, setFormError] = useState<string>("");
+
+  const {
+    createMarket,
+    isPending,
+    isConfirming,
+    isConfirmed,
+    error: contractError,
+    hash,
+  } = useCreateMarket();
 
   // Extract user data from context
   const user = context?.user;
@@ -71,27 +82,89 @@ export default function Markets() {
       title: "",
       description: "",
       judge: "",
-      optionA: "",
-      optionB: "",
+      options: ["", ""], // Array de strings para as opções
     },
-    onSubmit: (values) => {
-      // Add new market to the list
-      const newMarket = {
-        id: markets.length + 1,
-        title: values.title,
-        status: "BETS OPEN",
-        volume: "$0.00",
-        icon: "📊",
-        options: [
-          { name: values.optionA, percentage: 50, color: "bg-green-400" },
-          { name: values.optionB, percentage: 50, color: "bg-yellow-200" },
-        ],
-      };
-      setMarkets([...markets, newMarket]);
-      setIsModalOpen(false);
-      formik.resetForm();
+    onSubmit: async (values) => {
+      try {
+        // Clear previous errors
+        setFormError("");
+
+        // Determine judge address
+        let judgeAddress =
+          values.judge ||
+          address ||
+          "0x0000000000000000000000000000000000000000";
+
+        // Validate if it's a valid address
+        if (!isAddress(judgeAddress)) {
+          setFormError("Invalid judge address");
+          return;
+        }
+
+        // Filter empty options
+        const validOptions = values.options.filter((opt) => opt.trim() !== "");
+
+        if (validOptions.length < 2) {
+          setFormError("You need at least 2 valid options");
+          return;
+        }
+
+        await createMarket(
+          values.title, // question
+          judgeAddress, // judge (now a valid Address)
+          validOptions // outcomes
+        );
+
+        console.log("Market creation transaction submitted!");
+        console.log("Transaction hash:", hash);
+
+        // Calculate equal percentage for all options
+        const equalPercentage = Math.floor(100 / validOptions.length);
+        const colors = [
+          "bg-green-400",
+          "bg-yellow-200",
+          "bg-pink-300",
+          "bg-purple-300",
+          "bg-blue-300",
+          "bg-red-300",
+        ];
+        const newMarket = {
+          id: markets.length + 1,
+          title: values.title,
+          status: "BETS OPEN",
+          volume: "$0.00",
+          icon: "🎯",
+          options: validOptions.map((name, index) => ({
+            name,
+            percentage:
+              index === 0
+                ? 100 - equalPercentage * (validOptions.length - 1)
+                : equalPercentage,
+            color: colors[index % colors.length],
+          })),
+        };
+        setMarkets([...markets, newMarket]);
+
+        // Close modal and reset form
+        setIsModalOpen(false);
+        formik.resetForm();
+      } catch (error) {
+        console.error("Error creating market:", error);
+      }
     },
   });
+
+  // Functions to add/remove options
+  const addOption = () => {
+    formik.setFieldValue("options", [...formik.values.options, ""]);
+  };
+
+  const removeOption = (index: number) => {
+    if (formik.values.options.length > 2) {
+      const newOptions = formik.values.options.filter((_, i) => i !== index);
+      formik.setFieldValue("options", newOptions);
+    }
+  };
 
   if (!isMiniAppReady) {
     return (
@@ -115,9 +188,7 @@ export default function Markets() {
             <div
               key={market.id}
               className={`rounded-2xl p-5 hover:shadow-lg transition-shadow cursor-pointer ${
-                market.status === "BETS OPEN"
-                  ? "bg-[#FCFDF5]"
-                  : "bg-gray-100"
+                market.status === "BETS OPEN" ? "bg-[#FCFDF5]" : "bg-gray-100"
               }`}
               onClick={() => router.push(`/markets/${market.id}`)}
             >
@@ -148,7 +219,10 @@ export default function Markets() {
               {/* Options - Bar Chart Style */}
               <div className="space-y-2">
                 {market.options.map((option, index) => (
-                  <div key={index} className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    key={index}
+                    className="relative h-8 bg-gray-200 rounded-full overflow-hidden"
+                  >
                     <div
                       className={`h-full ${option.color} flex items-center px-3 transition-all duration-300`}
                       style={{ width: `${option.percentage}%` }}
@@ -236,43 +310,82 @@ export default function Markets() {
               />
             </div>
 
-            {/* Option A */}
-            <div className="space-y-2">
-              <Label htmlFor="optionA" className="text-sm font-medium text-black">
-                Option A
-              </Label>
-              <Input
-                id="optionA"
-                name="optionA"
-                placeholder="Enter first option"
-                value={formik.values.optionA}
-                onChange={formik.handleChange}
-                className="w-full border-gray-300"
-              />
-            </div>
+            {/* Options - Dynamic */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Options</Label>
+                <Button
+                  type="button"
+                  onClick={addOption}
+                  size="sm"
+                  variant="outline"
+                  className="text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Option
+                </Button>
+              </div>
 
-            {/* Option B */}
-            <div className="space-y-2">
-              <Label htmlFor="optionB" className="text-sm font-medium text-black">
-                Option B
-              </Label>
-              <Input
-                id="optionB"
-                name="optionB"
-                placeholder="Enter second option"
-                value={formik.values.optionB}
-                onChange={formik.handleChange}
-                className="w-full border-gray-300"
-              />
+              {formik.values.options.map((option, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                    value={option}
+                    onChange={(e) => {
+                      const newOptions = [...formik.values.options];
+                      newOptions[index] = e.target.value;
+                      formik.setFieldValue("options", newOptions);
+                    }}
+                    className="flex-1"
+                  />
+                  {formik.values.options.length > 2 && (
+                    <Button
+                      type="button"
+                      onClick={() => removeOption(index)}
+                      size="icon"
+                      variant="ghost"
+                      className="h-10 w-10 text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
             </div>
 
             {/* Submit Button */}
             <Button
               type="submit"
-              className="w-full bg-[#FEABEF] hover:bg-[#ff9be0] text-black font-semibold py-6 text-lg"
+              disabled={isPending || isConfirming}
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create
+              {isPending
+                ? "Awaiting approval..."
+                : isConfirming
+                ? "Creating market..."
+                : "Create"}
             </Button>
+
+            {/* Form validation error */}
+            {formError && (
+              <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded-md border border-red-200">
+                ⚠️ {formError}
+              </p>
+            )}
+
+            {/* Contract error message */}
+            {contractError && (
+              <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded-md border border-red-200">
+                ⚠️ Error: {contractError.message}
+              </p>
+            )}
+
+            {/* Success message */}
+            {isConfirmed && hash && (
+              <p className="text-sm text-green-600 mt-2 bg-green-50 p-3 rounded-md border border-green-200">
+                ✓ Market created successfully! TX: {hash.slice(0, 10)}...
+              </p>
+            )}
           </form>
         </DialogContent>
       </Dialog>
