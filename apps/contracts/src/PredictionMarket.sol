@@ -20,6 +20,7 @@ contract PredictionMarket is ReentrancyGuard {
         string question;
         IERC20 predictionToken;
         uint256 numOutcomes;
+        string[] outcomes;
         uint256 totalPool;
         bool resolved;
         uint256 winningOutcome;
@@ -42,7 +43,7 @@ contract PredictionMarket is ReentrancyGuard {
         string question,
         address indexed resolver,
         address predictionToken,
-        uint256 numOutcomes
+        string[] outcomes
     );
 
     event PredictionPlaced(
@@ -66,6 +67,7 @@ contract PredictionMarket is ReentrancyGuard {
     // Errors
     error InvalidResolver();
     error InvalidNumOutcomes();
+    error InvalidOutcomesLength();
     error MarketNotFound();
     error MarketAlreadyResolved();
     error InvalidOutcome();
@@ -80,17 +82,17 @@ contract PredictionMarket is ReentrancyGuard {
      * @param question The question or description of the market
      * @param resolver Address that can resolve the market
      * @param predictionToken ERC20 token used for predictions
-     * @param numOutcomes Number of possible outcomes (must be >= 2)
+     * @param outcomes Array of outcome descriptions (e.g., ["Yes", "No"])
      * @return marketId The ID of the newly created market
      */
     function createMarket(
         string calldata question,
         address resolver,
         address predictionToken,
-        uint256 numOutcomes
+        string[] calldata outcomes
     ) external returns (uint256 marketId) {
         if (resolver == address(0)) revert InvalidResolver();
-        if (numOutcomes < 2) revert InvalidNumOutcomes();
+        if (outcomes.length < 2) revert InvalidNumOutcomes();
 
         marketId = marketCount++;
 
@@ -99,7 +101,8 @@ contract PredictionMarket is ReentrancyGuard {
             resolver: resolver,
             question: question,
             predictionToken: IERC20(predictionToken),
-            numOutcomes: numOutcomes,
+            numOutcomes: outcomes.length,
+            outcomes: outcomes,
             totalPool: 0,
             resolved: false,
             winningOutcome: 0,
@@ -112,7 +115,7 @@ contract PredictionMarket is ReentrancyGuard {
             question,
             resolver,
             predictionToken,
-            numOutcomes
+            outcomes
         );
     }
 
@@ -251,6 +254,30 @@ contract PredictionMarket is ReentrancyGuard {
         if (outcomePool == 0) return 0;
 
         return (userPrediction * market.totalPool) / outcomePool;
+    }
+
+    /**
+     * @notice Get all outcome descriptions for a market
+     * @param marketId ID of the market
+     * @return Array of outcome descriptions
+     */
+    function getOutcomes(uint256 marketId) external view returns (string[] memory) {
+        return markets[marketId].outcomes;
+    }
+
+    /**
+     * @notice Get a specific outcome description
+     * @param marketId ID of the market
+     * @param outcomeId ID of the outcome
+     * @return Outcome description
+     */
+    function getOutcomeDescription(
+        uint256 marketId,
+        uint256 outcomeId
+    ) external view returns (string memory) {
+        Market storage market = markets[marketId];
+        if (outcomeId >= market.numOutcomes) revert InvalidOutcome();
+        return market.outcomes[outcomeId];
     }
 }
 
