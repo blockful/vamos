@@ -60,12 +60,12 @@ export function usePlacePrediction() {
         outcomeId: bigint,
         amount: bigint
     ) => {
-        if (!VAMOS_TOKEN_ADDRESS) {
-            throw new Error("VAMOS_TOKEN_ADDRESS is not configured");
+        if (!VAMOS_CONTRACT_ADDRESS) {
+            throw new Error("VAMOS_CONTRACT_ADDRESS is not configured");
         }
 
         return writeContract({
-            address: VAMOS_TOKEN_ADDRESS,
+            address: VAMOS_CONTRACT_ADDRESS,
             abi: VamosAbi,
             functionName: "placePrediction",
             // args: [marketId, outcomeId, amount],

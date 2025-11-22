@@ -24,7 +24,7 @@ const MOCK_MARKETS = [
     id: 1,
     title: "Tennis Match: Alex vs Jason",
     status: "BETS OPEN",
-    volume: "$100.00",
+    volume: 100.0,
     icon: "🎾",
     options: [
       { name: "Alex", percentage: 80, color: "bg-green-400" },
@@ -35,7 +35,7 @@ const MOCK_MARKETS = [
     id: 2,
     title: "Tennis Match: Alex vs Jason",
     status: "BETS OPEN",
-    volume: "$100.00",
+    volume: 100.0,
     icon: "🎾",
     options: [
       { name: "Alex", percentage: 80, color: "bg-green-400" },
@@ -46,7 +46,7 @@ const MOCK_MARKETS = [
     id: 3,
     title: "Volleyball Match: Isa vs Dani",
     status: "BETS CLOSED",
-    volume: "$200.00",
+    volume: 200.0,
     icon: "🏐",
     options: [
       { name: "Isa", percentage: 60, color: "bg-pink-300" },
@@ -132,7 +132,7 @@ export default function Markets() {
           id: markets.length + 1,
           title: values.title,
           status: "BETS OPEN",
-          volume: "$0.00",
+          volume: 0,
           icon: "🎯",
           options: validOptions.map((name, index) => ({
             name,
