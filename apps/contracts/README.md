@@ -1,8 +1,8 @@
-# Prediction Market Contracts
+# Vamos (vamos.fun) - Prediction Market Contracts
 
 ## Overview
 
-Multi-outcome prediction market smart contract where users create markets, place predictions, and claim winnings proportionally.
+vamos.fun is a multi-outcome prediction market smart contract where users create markets, place predictions, and claim winnings proportionally.
 
 ## Features
 
