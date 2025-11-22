@@ -2,6 +2,7 @@
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { useState } from "react";
 import { useFormik } from "formik";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,7 @@ const MOCK_MARKETS = [
 
 export default function Markets() {
   const { isMiniAppReady } = useMiniApp();
+  const router = useRouter();
   const [markets, setMarkets] = useState(MOCK_MARKETS);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -95,6 +97,7 @@ export default function Markets() {
             <div
               key={market.id}
               className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => router.push(`/markets/${market.id}`)}
             >
               <div className="flex items-center gap-4">
                 {/* Market Icon */}
