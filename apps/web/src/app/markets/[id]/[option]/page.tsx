@@ -155,6 +155,7 @@ export default function OptionDetails() {
   const optionId = parseInt(params.option as string);
   const [betAmount, setBetAmount] = useState(30);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const market = MOCK_MARKETS.find((m) => m.id === marketId);
   const option = market?.options[optionId];
@@ -191,10 +192,19 @@ export default function OptionDetails() {
       setBetAmount(1);
       return;
     }
-    // TODO: Implement bet confirmation logic
-    console.log(`Placing bet of $${betAmount} on ${option?.name}`);
+    // Show confirmation view in the same drawer
+    setShowConfirmation(true);
+  };
+
+  const handleCloseConfirmation = () => {
     setIsDrawerOpen(false);
+    setShowConfirmation(false);
     setBetAmount(30);
+  };
+
+  const handleShare = () => {
+    // TODO: Implement share logic
+    console.log(`Sharing bet on ${option?.name}`);
   };
 
   if (!isMiniAppReady) {
@@ -342,7 +352,16 @@ export default function OptionDetails() {
           </div>
 
           {/* Place Bet Button */}
-          <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+          <Drawer
+            open={isDrawerOpen}
+            onOpenChange={(open) => {
+              setIsDrawerOpen(open);
+              if (!open) {
+                // Reset confirmation state when drawer closes
+                setShowConfirmation(false);
+              }
+            }}
+          >
             <DrawerTrigger asChild>
               <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-6 text-lg rounded-2xl">
                 Place Bet
@@ -350,86 +369,125 @@ export default function OptionDetails() {
             </DrawerTrigger>
             <DrawerContent>
               <div className="mx-auto w-full max-w-sm">
-                <DrawerHeader>
-                  <DrawerTitle className="text-left text-lg font-bold">
-                    Place bet
-                  </DrawerTitle>
-                  <DrawerDescription className="text-left text-2xl font-bold text-gray-900">
-                    {option.name}
-                  </DrawerDescription>
-                </DrawerHeader>
+                {!showConfirmation ? (
+                  <>
+                    {/* Place Bet Form */}
+                    <DrawerHeader>
+                      <DrawerTitle className="text-left text-lg font-bold">
+                        Place bet
+                      </DrawerTitle>
+                      <DrawerDescription className="text-left text-2xl font-bold text-gray-900">
+                        {option.name}
+                      </DrawerDescription>
+                    </DrawerHeader>
 
-                <div className="p-4 space-y-6">
-                  {/* Amount Controls */}
-                  <div className="flex items-center justify-center gap-4">
-                    {/* Decrement Button */}
-                    <button
-                      onClick={handleDecrement}
-                      className="w-14 h-14 flex-shrink-0 rounded-full bg-green-400 hover:bg-green-500 flex items-center justify-center text-white transition-colors"
-                    >
-                      <Minus className="h-6 w-6" />
-                    </button>
+                    <div className="p-4 space-y-6">
+                      {/* Amount Controls */}
+                      <div className="flex items-center justify-center gap-4">
+                        {/* Decrement Button */}
+                        <button
+                          onClick={handleDecrement}
+                          className="w-14 h-14 flex-shrink-0 rounded-full bg-green-400 hover:bg-green-500 flex items-center justify-center text-white transition-colors"
+                        >
+                          <Minus className="h-6 w-6" />
+                        </button>
 
-                    {/* Amount Input */}
-                    <div className="relative min-w-[140px]">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-4xl font-bold text-gray-900 pointer-events-none z-10">
-                        $
-                      </span>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        value={betAmount}
-                        onChange={handleInputChange}
-                        onBlur={handleInputBlur}
-                        className="w-full text-4xl font-bold text-gray-900 text-center border-none shadow-none pl-9 h-auto py-2 focus-visible:ring-0"
-                      />
+                        {/* Amount Input */}
+                        <div className="relative min-w-[140px]">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-4xl font-bold text-gray-900 pointer-events-none z-10">
+                            $
+                          </span>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            value={betAmount}
+                            onChange={handleInputChange}
+                            onBlur={handleInputBlur}
+                            className="w-full text-4xl font-bold text-gray-900 text-center border-none shadow-none pl-9 h-auto py-2 focus-visible:ring-0"
+                          />
+                        </div>
+
+                        {/* Increment Button */}
+                        <button
+                          onClick={handleIncrement}
+                          className="w-14 h-14 flex-shrink-0 rounded-full bg-green-400 hover:bg-green-500 flex items-center justify-center text-white transition-colors"
+                        >
+                          <Plus className="h-6 w-6" />
+                        </button>
+                      </div>
+
+                      {/* Quick Add Buttons */}
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          onClick={() => handleQuickAdd(10)}
+                          className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
+                        >
+                          +$10
+                        </button>
+                        <button
+                          onClick={() => handleQuickAdd(20)}
+                          className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
+                        >
+                          +$20
+                        </button>
+                        <button
+                          onClick={() => handleQuickAdd(30)}
+                          className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
+                        >
+                          +$30
+                        </button>
+                      </div>
+
+                      {/* Warning Text */}
+                      <p className="text-sm text-gray-600 text-center">
+                        *Once you confirm a bet you cannot undo it
+                      </p>
                     </div>
 
-                    {/* Increment Button */}
-                    <button
-                      onClick={handleIncrement}
-                      className="w-14 h-14 flex-shrink-0 rounded-full bg-green-400 hover:bg-green-500 flex items-center justify-center text-white transition-colors"
-                    >
-                      <Plus className="h-6 w-6" />
-                    </button>
-                  </div>
+                    <DrawerFooter>
+                      <Button
+                        onClick={handleConfirmBet}
+                        className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-6 text-lg rounded-2xl"
+                      >
+                        Confirm bet
+                      </Button>
+                    </DrawerFooter>
+                  </>
+                ) : (
+                  <>
+                    {/* Confirmation View */}
+                    <div className="flex flex-col items-center justify-center py-8 space-y-6 px-4">
+                      {/* Circular Image Placeholder */}
+                      <div className="w-40 h-40 rounded-full bg-gray-200 flex items-center justify-center">
+                        <div className="w-32 h-32 rounded-full bg-gray-300"></div>
+                      </div>
 
-                  {/* Quick Add Buttons */}
-                  <div className="flex items-center justify-center gap-3">
-                    <button
-                      onClick={() => handleQuickAdd(10)}
-                      className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
-                    >
-                      +$10
-                    </button>
-                    <button
-                      onClick={() => handleQuickAdd(20)}
-                      className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
-                    >
-                      +$20
-                    </button>
-                    <button
-                      onClick={() => handleQuickAdd(30)}
-                      className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
-                    >
-                      +$30
-                    </button>
-                  </div>
+                      {/* Confirmation Text */}
+                      <div className="text-center">
+                        <h2 className="text-2xl font-bold text-gray-900">
+                          I&apos;m rooting for {option.name}!
+                        </h2>
+                      </div>
 
-                  {/* Warning Text */}
-                  <p className="text-sm text-gray-600 text-center">
-                    *Once you confirm a bet you cannot undo it
-                  </p>
-                </div>
-
-                <DrawerFooter>
-                  <Button
-                    onClick={handleConfirmBet}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-6 text-lg rounded-2xl"
-                  >
-                    Confirm bet
-                  </Button>
-                </DrawerFooter>
+                      {/* Action Buttons */}
+                      <div className="w-full space-y-3">
+                        <Button
+                          onClick={handleShare}
+                          className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-6 text-lg rounded-lg"
+                        >
+                          Share
+                        </Button>
+                        <Button
+                          onClick={handleCloseConfirmation}
+                          variant="secondary"
+                          className="w-full bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold py-6 text-lg rounded-lg"
+                        >
+                          Close
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </DrawerContent>
           </Drawer>
