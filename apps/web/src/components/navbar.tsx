@@ -1,19 +1,24 @@
 "use client";
 
 import { LogOut, Wallet } from "lucide-react";
-import { useAccount, useDisconnect, useBalance } from "wagmi";
+import { useAccount, useDisconnect, useBalance, useSwitchChain } from "wagmi";
 import Image from "next/image";
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import {
+  SupportedChainIds,
+  supportedChainIds,
+} from "@/contexts/frame-wallet-context";
+import { sepolia } from "viem/chains";
 
 export function Navbar() {
   const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
+  const { switchChain } = useSwitchChain();
   const { context } = useMiniApp();
   const router = useRouter();
-
   // Get wallet balance for the current chain
   const { data: balance, isLoading: isLoadingBalance } = useBalance({
     address: address,
@@ -27,6 +32,14 @@ export function Navbar() {
     console.log("Navbar - Balance:", balance);
     console.log("Navbar - Is Loading Balance:", isLoadingBalance);
   }, [address, chain, balance, isLoadingBalance]);
+
+  useEffect(() => {
+    if (!isConnected) return;
+
+    if (chain && !supportedChainIds.includes(chain.id as SupportedChainIds)) {
+      switchChain({ chainId: sepolia.id }); // fallback
+    }
+  }, [chain, isConnected]);
 
   // Extract user data from context
   const user = context?.user;

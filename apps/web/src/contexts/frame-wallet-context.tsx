@@ -14,6 +14,17 @@ import {
 } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 
+export const supportedChainIds = [
+  celo.id,
+  celoAlfajores.id,
+  mainnet.id,
+  sepolia.id,
+  base.id,
+  baseSepolia.id,
+];
+
+export type SupportedChainIds = 1 | 42220 | 44787 | 11155111 | 8453 | 84532;
+
 const config = createConfig({
   chains: [celo, celoAlfajores, mainnet, sepolia, base, baseSepolia],
   connectors: [farcasterMiniApp(), injected()],
