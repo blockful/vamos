@@ -51,6 +51,7 @@ export default function Markets() {
   const router = useRouter();
   const [markets, setMarkets] = useState(MOCK_MARKETS);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formError, setFormError] = useState<string>("");
   const { address } = useAccount();
 
   const {
@@ -72,6 +73,9 @@ export default function Markets() {
     },
     onSubmit: async (values) => {
       try {
+        // Clear previous errors
+        setFormError("");
+
         // Determine judge address
         let judgeAddress =
           values.judge ||
@@ -80,7 +84,7 @@ export default function Markets() {
 
         // Validate if it's a valid address
         if (!isAddress(judgeAddress)) {
-          alert("Invalid judge address");
+          setFormError("Invalid judge address");
           return;
         }
 
@@ -88,7 +92,7 @@ export default function Markets() {
         const validOptions = values.options.filter((opt) => opt.trim() !== "");
 
         if (validOptions.length < 2) {
-          alert("You need at least 2 valid options");
+          setFormError("You need at least 2 valid options");
           return;
         }
 
@@ -321,16 +325,23 @@ export default function Markets() {
                 : "Create"}
             </Button>
 
-            {/* Error message */}
+            {/* Form validation error */}
+            {formError && (
+              <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded-md border border-red-200">
+                ⚠️ {formError}
+              </p>
+            )}
+
+            {/* Contract error message */}
             {contractError && (
-              <p className="text-sm text-red-600 mt-2">
-                Error: {contractError.message}
+              <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded-md border border-red-200">
+                ⚠️ Error: {contractError.message}
               </p>
             )}
 
             {/* Success message */}
             {isConfirmed && hash && (
-              <p className="text-sm text-green-600 mt-2">
+              <p className="text-sm text-green-600 mt-2 bg-green-50 p-3 rounded-md border border-green-200">
                 ✓ Market created successfully! TX: {hash.slice(0, 10)}...
               </p>
             )}
