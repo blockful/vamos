@@ -25,9 +25,6 @@ const config = createConfig({
     [base.id]: http(),
     [baseSepolia.id]: http(),
   },
-  // Disable automatic reconnection
-  ssr: false,
-  multiInjectedProviderDiscovery: false,
 });
 
 const queryClient = new QueryClient();
@@ -38,7 +35,7 @@ export default function FrameWalletProvider({
   children: ReactNode;
 }) {
   return (
-    <WagmiProvider config={config} reconnectOnMount={false}>
+    <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </WagmiProvider>
   );
