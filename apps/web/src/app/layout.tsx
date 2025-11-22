@@ -20,16 +20,19 @@ const frame = {
       name: "vamos",
       url: appUrl,
       splashImageUrl: `${appUrl}/icon.png`,
-      splashBackgroundColor: "#ffffff",
+      splashBackgroundColor: "#FCFDF5",
     },
   },
 };
 
 export const metadata: Metadata = {
-  title: 'vamos',
+  title: 'Vamos.Fun',
   description: 'Vamos Predictable Market',
+  icons: {
+    icon: '/icon.png',
+  },
   openGraph: {
-    title: 'vamos',
+    title: 'Vamos.Fun',
     description: 'Vamos Predictable Market',
     images: [`${appUrl}/opengraph-image.png`],
   },
