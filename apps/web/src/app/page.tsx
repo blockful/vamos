@@ -6,32 +6,34 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { sdk } from "@farcaster/frame-sdk";
+import type { Connector } from "wagmi";
 
 export default function Home() {
   const { context, isMiniAppReady } = useMiniApp();
   const router = useRouter();
   const [isRequestingWallet, setIsRequestingWallet] = useState(false);
   const [hasAttemptedAutoConnect, setHasAttemptedAutoConnect] = useState(false);
+  const [showWalletOptions, setShowWalletOptions] = useState(false);
 
   // Wallet connection hooks
   const { address, isConnected, isConnecting } = useAccount();
   const { connect, connectors } = useConnect();
 
   // Auto-connect wallet when miniapp is ready (only once)
+  // Only auto-connect Farcaster if in Farcaster context
   useEffect(() => {
     if (
       isMiniAppReady &&
       !isConnected &&
       !isConnecting &&
       !hasAttemptedAutoConnect &&
-      connectors.length > 0
+      connectors.length > 0 &&
+      context?.client // Only auto-connect if in Farcaster
     ) {
       setHasAttemptedAutoConnect(true);
-      const farcasterConnector = connectors.find(
-        (c: any) => c.id === "farcaster"
-      );
-      if (farcasterConnector) {
-        connect({ connector: farcasterConnector });
+      const walletConnector = connectors.find((c) => c.id === "farcaster");
+      if (walletConnector) {
+        connect({ connector: walletConnector });
       }
     }
   }, [
@@ -41,6 +43,7 @@ export default function Home() {
     hasAttemptedAutoConnect,
     connectors,
     connect,
+    context,
   ]);
 
   // Redirect to markets when connected
@@ -56,31 +59,62 @@ export default function Home() {
   const pfpUrl = user?.pfpUrl;
 
   // Function to request wallet access
-  const handleConnectWallet = async () => {
+  const handleConnectWallet = () => {
+    // Show wallet options if multiple connectors available
+    setShowWalletOptions(true);
+  };
+
+  // Function to connect with specific connector
+  const handleConnectorClick = async (connector: Connector) => {
     try {
       setIsRequestingWallet(true);
+      setShowWalletOptions(false);
 
-      // Request wallet access from Farcaster
-      const result = await sdk.wallet.ethProvider.request({
-        method: "eth_requestAccounts",
-      });
-
-      console.log("Wallet access granted:", result);
-
-      // After wallet access, connect via wagmi
-      if (connectors.length > 0) {
-        const farcasterConnector = connectors.find(
-          (c: any) => c.id === "farcaster"
-        );
-        if (farcasterConnector) {
-          connect({ connector: farcasterConnector });
-        }
+      // If Farcaster connector, request wallet access first
+      if (connector.id === "farcaster") {
+        const result = await sdk.wallet.ethProvider.request({
+          method: "eth_requestAccounts",
+        });
+        console.log("Farcaster wallet access granted:", result);
       }
+
+      // Connect with selected connector
+      connect({ connector });
     } catch (error) {
-      console.error("Error requesting wallet:", error);
+      console.error("Error connecting wallet:", error);
+      setShowWalletOptions(true); // Show options again on error
     } finally {
       setIsRequestingWallet(false);
     }
+  };
+
+  // Get display name for connector
+  const getConnectorName = (connector: Connector) => {
+    if (connector.id === "farcaster") return "Farcaster Wallet";
+    if (connector.id === "injected") {
+      // Try to detect which injected wallet
+      if (typeof window !== "undefined") {
+        if ((window as any).ethereum?.isMetaMask) return "MetaMask";
+        if ((window as any).ethereum?.isCoinbaseWallet)
+          return "Coinbase Wallet";
+        if ((window as any).ethereum?.isRabby) return "Rabby Wallet";
+      }
+      return "Browser Wallet";
+    }
+    return connector.name;
+  };
+
+  // Get icon for connector
+  const getConnectorIcon = (connector: Connector) => {
+    if (connector.id === "farcaster") return "🟣";
+    if (connector.id === "injected") {
+      if (typeof window !== "undefined") {
+        if ((window as any).ethereum?.isMetaMask) return "🦊";
+        if ((window as any).ethereum?.isCoinbaseWallet) return "💙";
+      }
+      return "💳";
+    }
+    return "🔗";
   };
 
   // Format wallet address to show first 6 and last 4 characters
@@ -126,26 +160,66 @@ export default function Home() {
               )}
             </div>
 
-            {/* Connect Wallet Button */}
-            <Button
-              onClick={handleConnectWallet}
-              disabled={isConnected || isConnecting || isRequestingWallet}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-4 px-6"
-            >
-              {isConnecting || isRequestingWallet ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Connecting...
-                </>
-              ) : isConnected ? (
-                <>
-                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                  Connected
-                </>
-              ) : (
-                "Connect Wallet"
-              )}
-            </Button>
+            {/* Connect Wallet Section */}
+            {!showWalletOptions ? (
+              <Button
+                onClick={handleConnectWallet}
+                disabled={isConnected || isConnecting || isRequestingWallet}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-4 px-6"
+              >
+                {isConnecting || isRequestingWallet ? (
+                  <div className="flex items-center gap-2 justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Connecting...</span>
+                  </div>
+                ) : isConnected ? (
+                  <div className="flex items-center gap-2 justify-center">
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span>Connected</span>
+                  </div>
+                ) : (
+                  "Connect Wallet"
+                )}
+              </Button>
+            ) : (
+              <div className="w-full space-y-3">
+                <p className="text-sm text-gray-600 text-center mb-2">
+                  Choose a wallet to connect
+                </p>
+
+                {/* Wallet Options */}
+                {connectors.map((connector) => (
+                  <Button
+                    key={connector.id}
+                    onClick={() => handleConnectorClick(connector)}
+                    disabled={isConnecting || isRequestingWallet}
+                    variant="outline"
+                    className="w-full py-4 px-6 flex items-center justify-between hover:bg-gray-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">
+                        {getConnectorIcon(connector)}
+                      </span>
+                      <span className="font-medium">
+                        {getConnectorName(connector)}
+                      </span>
+                    </div>
+                    {isConnecting && (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    )}
+                  </Button>
+                ))}
+
+                {/* Cancel Button */}
+                <Button
+                  onClick={() => setShowWalletOptions(false)}
+                  variant="ghost"
+                  className="w-full mt-2"
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
 
             {/* Wallet Address (shown when connected) */}
             {isConnected && address && (
