@@ -1,0 +1,440 @@
+"use client";
+import { useMiniApp } from "@/contexts/miniapp-context";
+import { useParams, useRouter } from "next/navigation";
+import { Share2, ChevronLeft, Minus, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { useState } from "react";
+
+// Mock data - should match the data from market details page
+const MOCK_MARKETS = [
+  {
+    id: 1,
+    title: "Match: Alex x Jason",
+    options: [
+      {
+        id: 0,
+        name: "Alex",
+        totalAmount: 50,
+        bets: [
+          {
+            user: "User 1",
+            address: "0x1234...5678",
+            amount: 10,
+            timestamp: 1732233600000,
+          },
+          {
+            user: "User 2",
+            address: "0xabcd...ef12",
+            amount: 10,
+            timestamp: 1732233500000,
+          },
+          {
+            user: "User 3",
+            address: "0x9876...4321",
+            amount: 10,
+            timestamp: 1732233400000,
+          },
+        ],
+        chartData: [
+          { timestamp: 1, value: 45 },
+          { timestamp: 2, value: 52 },
+          { timestamp: 3, value: 48 },
+          { timestamp: 4, value: 55 },
+          { timestamp: 5, value: 58 },
+          { timestamp: 6, value: 53 },
+          { timestamp: 7, value: 60 },
+          { timestamp: 8, value: 65 },
+        ],
+      },
+      {
+        id: 1,
+        name: "Jason",
+        totalAmount: 50,
+        bets: [
+          {
+            user: "User 4",
+            address: "0x5555...6666",
+            amount: 10,
+            timestamp: 1732233300000,
+          },
+          {
+            user: "User 5",
+            address: "0x7777...8888",
+            amount: 10,
+            timestamp: 1732233200000,
+          },
+          {
+            user: "User 6",
+            address: "0x9999...0000",
+            amount: 10,
+            timestamp: 1732233100000,
+          },
+        ],
+        chartData: [
+          { timestamp: 1, value: 55 },
+          { timestamp: 2, value: 48 },
+          { timestamp: 3, value: 52 },
+          { timestamp: 4, value: 45 },
+          { timestamp: 5, value: 42 },
+          { timestamp: 6, value: 47 },
+          { timestamp: 7, value: 40 },
+          { timestamp: 8, value: 35 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 2,
+    title: "Match: Maria x Sofia",
+    options: [
+      {
+        id: 0,
+        name: "Maria",
+        totalAmount: 40,
+        bets: [
+          {
+            user: "User 1",
+            address: "0x1111...2222",
+            amount: 20,
+            timestamp: 1732233000000,
+          },
+          {
+            user: "User 2",
+            address: "0x3333...4444",
+            amount: 20,
+            timestamp: 1732232900000,
+          },
+        ],
+        chartData: [
+          { timestamp: 1, value: 50 },
+          { timestamp: 2, value: 48 },
+        ],
+      },
+      {
+        id: 1,
+        name: "Sofia",
+        totalAmount: 45,
+        bets: [
+          {
+            user: "User 3",
+            address: "0x5555...6666",
+            amount: 25,
+            timestamp: 1732232800000,
+          },
+          {
+            user: "User 4",
+            address: "0x7777...8888",
+            amount: 20,
+            timestamp: 1732232700000,
+          },
+        ],
+        chartData: [
+          { timestamp: 1, value: 50 },
+          { timestamp: 2, value: 52 },
+        ],
+      },
+    ],
+  },
+];
+
+export default function OptionDetails() {
+  const { isMiniAppReady } = useMiniApp();
+  const params = useParams();
+  const router = useRouter();
+  const marketId = parseInt(params.id as string);
+  const optionId = parseInt(params.option as string);
+  const [betAmount, setBetAmount] = useState(30);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const market = MOCK_MARKETS.find((m) => m.id === marketId);
+  const option = market?.options[optionId];
+
+  const handleIncrement = () => setBetAmount((prev) => prev + 1);
+  const handleDecrement = () => setBetAmount((prev) => Math.max(1, prev - 1));
+  const handleQuickAdd = (amount: number) =>
+    setBetAmount((prev) => prev + amount);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow empty string for better UX when deleting
+    if (value === "") {
+      setBetAmount(0);
+      return;
+    }
+    // Only allow numbers
+    const numValue = parseInt(value.replace(/\D/g, ""));
+    if (!isNaN(numValue) && numValue >= 0) {
+      setBetAmount(numValue);
+    }
+  };
+
+  const handleInputBlur = () => {
+    // Ensure minimum value of 1 when input loses focus
+    if (betAmount < 1) {
+      setBetAmount(1);
+    }
+  };
+
+  const handleConfirmBet = () => {
+    // Ensure minimum value before confirming
+    if (betAmount < 1) {
+      setBetAmount(1);
+      return;
+    }
+    // TODO: Implement bet confirmation logic
+    console.log(`Placing bet of $${betAmount} on ${option?.name}`);
+    setIsDrawerOpen(false);
+    setBetAmount(30);
+  };
+
+  if (!isMiniAppReady) {
+    return (
+      <main className="flex-1">
+        <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+          <div className="w-full max-w-md mx-auto p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!option) {
+    return (
+      <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <p className="text-center text-gray-600">Option not found</p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <section className="max-w-2xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-3xl shadow-xl p-6 space-y-6">
+          {/* Header with Back Button, Option Name, Amount, and Share */}
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3 flex-1">
+              {/* Back Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.back()}
+                className="mt-1"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </Button>
+
+              {/* Option Info */}
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-1">
+                  {option.name}
+                </h1>
+                <p className="text-2xl font-semibold text-gray-700">
+                  ${option.totalAmount}
+                </p>
+              </div>
+            </div>
+
+            {/* Share Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-1 text-orange-500 hover:text-orange-600 flex-shrink-0"
+            >
+              <span className="text-sm font-medium">share</span>
+              <Share2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Chart - Only this option's line */}
+          <div className="bg-gray-100 rounded-2xl p-4 h-48 relative overflow-hidden">
+            <svg
+              className="w-full h-full"
+              viewBox="0 0 400 160"
+              preserveAspectRatio="none"
+            >
+              {/* Grid lines */}
+              <line
+                x1="0"
+                y1="40"
+                x2="400"
+                y2="40"
+                stroke="#e5e7eb"
+                strokeWidth="1"
+              />
+              <line
+                x1="0"
+                y1="80"
+                x2="400"
+                y2="80"
+                stroke="#e5e7eb"
+                strokeWidth="1"
+              />
+              <line
+                x1="0"
+                y1="120"
+                x2="400"
+                y2="120"
+                stroke="#e5e7eb"
+                strokeWidth="1"
+              />
+
+              {/* Option Line (Gray) */}
+              <polyline
+                fill="none"
+                stroke="#9ca3af"
+                strokeWidth="3"
+                points={option.chartData
+                  .map((point, index) => {
+                    const x = (index / (option.chartData.length - 1)) * 400;
+                    const y = 160 - (point.value / 100) * 160;
+                    return `${x},${y}`;
+                  })
+                  .join(" ")}
+              />
+            </svg>
+          </div>
+
+          {/* Bets Section */}
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Bets</h2>
+            <div className="space-y-3">
+              {option.bets.map((bet, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                >
+                  {/* Avatar */}
+                  <div className="w-12 h-12 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center">
+                    <span className="text-sm font-bold text-gray-600">
+                      {bet.user.charAt(0)}
+                    </span>
+                  </div>
+
+                  {/* User Info */}
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">{bet.user}</p>
+                    <p className="text-xs text-gray-500">{bet.address}</p>
+                  </div>
+
+                  {/* Bet Amount */}
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-gray-900">
+                      ${bet.amount}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Place Bet Button */}
+          <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+            <DrawerTrigger asChild>
+              <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-6 text-lg rounded-2xl">
+                Place Bet
+              </Button>
+            </DrawerTrigger>
+            <DrawerContent>
+              <div className="mx-auto w-full max-w-sm">
+                <DrawerHeader>
+                  <DrawerTitle className="text-left text-lg font-bold">
+                    Place bet
+                  </DrawerTitle>
+                  <DrawerDescription className="text-left text-2xl font-bold text-gray-900">
+                    {option.name}
+                  </DrawerDescription>
+                </DrawerHeader>
+
+                <div className="p-4 space-y-6">
+                  {/* Amount Controls */}
+                  <div className="flex items-center justify-center gap-4">
+                    {/* Decrement Button */}
+                    <button
+                      onClick={handleDecrement}
+                      className="w-14 h-14 flex-shrink-0 rounded-full bg-green-400 hover:bg-green-500 flex items-center justify-center text-white transition-colors"
+                    >
+                      <Minus className="h-6 w-6" />
+                    </button>
+
+                    {/* Amount Input */}
+                    <div className="relative min-w-[140px]">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-4xl font-bold text-gray-900 pointer-events-none z-10">
+                        $
+                      </span>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={betAmount}
+                        onChange={handleInputChange}
+                        onBlur={handleInputBlur}
+                        className="w-full text-4xl font-bold text-gray-900 text-center border-none shadow-none pl-9 h-auto py-2 focus-visible:ring-0"
+                      />
+                    </div>
+
+                    {/* Increment Button */}
+                    <button
+                      onClick={handleIncrement}
+                      className="w-14 h-14 flex-shrink-0 rounded-full bg-green-400 hover:bg-green-500 flex items-center justify-center text-white transition-colors"
+                    >
+                      <Plus className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  {/* Quick Add Buttons */}
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => handleQuickAdd(10)}
+                      className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
+                    >
+                      +$10
+                    </button>
+                    <button
+                      onClick={() => handleQuickAdd(20)}
+                      className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
+                    >
+                      +$20
+                    </button>
+                    <button
+                      onClick={() => handleQuickAdd(30)}
+                      className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
+                    >
+                      +$30
+                    </button>
+                  </div>
+
+                  {/* Warning Text */}
+                  <p className="text-sm text-gray-600 text-center">
+                    *Once you confirm a bet you cannot undo it
+                  </p>
+                </div>
+
+                <DrawerFooter>
+                  <Button
+                    onClick={handleConfirmBet}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-6 text-lg rounded-2xl"
+                  >
+                    Confirm bet
+                  </Button>
+                </DrawerFooter>
+              </div>
+            </DrawerContent>
+          </Drawer>
+        </div>
+      </section>
+    </main>
+  );
+}

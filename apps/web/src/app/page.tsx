@@ -2,6 +2,7 @@
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { useEffect, useState } from "react";
 import { useAccount, useConnect } from "wagmi";
+import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { sdk } from "@farcaster/frame-sdk";
@@ -10,25 +11,37 @@ export default function Home() {
   const { context, isMiniAppReady } = useMiniApp();
   const router = useRouter();
   const [isRequestingWallet, setIsRequestingWallet] = useState(false);
+  const [hasAttemptedAutoConnect, setHasAttemptedAutoConnect] = useState(false);
 
   // Wallet connection hooks
   const { address, isConnected, isConnecting } = useAccount();
   const { connect, connectors } = useConnect();
 
-  // Auto-connect wallet when miniapp is ready
+  // Auto-connect wallet when miniapp is ready (only once)
   useEffect(() => {
     if (
       isMiniAppReady &&
       !isConnected &&
       !isConnecting &&
+      !hasAttemptedAutoConnect &&
       connectors.length > 0
     ) {
-      const farcasterConnector = connectors.find((c) => c.id === "farcaster");
+      setHasAttemptedAutoConnect(true);
+      const farcasterConnector = connectors.find(
+        (c: any) => c.id === "farcaster"
+      );
       if (farcasterConnector) {
         connect({ connector: farcasterConnector });
       }
     }
-  }, [isMiniAppReady, isConnected, isConnecting, connectors, connect]);
+  }, [
+    isMiniAppReady,
+    isConnected,
+    isConnecting,
+    hasAttemptedAutoConnect,
+    connectors,
+    connect,
+  ]);
 
   // Redirect to markets when connected
   useEffect(() => {
@@ -56,7 +69,9 @@ export default function Home() {
 
       // After wallet access, connect via wagmi
       if (connectors.length > 0) {
-        const farcasterConnector = connectors.find((c) => c.id === "farcaster");
+        const farcasterConnector = connectors.find(
+          (c: any) => c.id === "farcaster"
+        );
         if (farcasterConnector) {
           connect({ connector: farcasterConnector });
         }
@@ -112,10 +127,10 @@ export default function Home() {
             </div>
 
             {/* Connect Wallet Button */}
-            <button
+            <Button
               onClick={handleConnectWallet}
               disabled={isConnected || isConnecting || isRequestingWallet}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-4 px-6"
             >
               {isConnecting || isRequestingWallet ? (
                 <>
@@ -130,7 +145,7 @@ export default function Home() {
               ) : (
                 "Connect Wallet"
               )}
-            </button>
+            </Button>
 
             {/* Wallet Address (shown when connected) */}
             {isConnected && address && (
