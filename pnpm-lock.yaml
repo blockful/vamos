@@ -11,9 +11,18 @@ importers:
       '@types/node':
         specifier: ^20.8.0
         version: 20.19.25
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.47.0
+        version: 8.47.0(@typescript-eslint/parser@8.47.0)(eslint@8.57.1)(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.47.0
+        version: 8.47.0(eslint@8.57.1)(typescript@5.9.3)
       dotenv-cli:
         specifier: ^11.0.0
         version: 11.0.0
+      eslint:
+        specifier: ^8.56.0
+        version: 8.57.1
       turbo:
         specifier: ^1.10.16
         version: 1.13.4

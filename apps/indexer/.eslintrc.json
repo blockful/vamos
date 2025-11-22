@@ -1,3 +1,9 @@
 {
-  "extends": "ponder"
+  "extends": [
+    "../../.eslintrc.json",
+    "ponder"
+  ],
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  }
 }

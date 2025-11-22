@@ -12,13 +12,20 @@
     "indexer:dev": "pnpm --filter @vamos/indexer dev",
     "indexer:dev:anvil": "pnpm --filter @vamos/indexer dev:anvil",
     "indexer:start": "pnpm --filter @vamos/indexer start",
+    "indexer:lint": "pnpm --filter @vamos/indexer lint",
     "web:dev": "pnpm --filter @vamos/web dev",
     "web:build": "pnpm --filter @vamos/web build",
-    "web:start": "pnpm --filter @vamos/web start"
+    "web:start": "pnpm --filter @vamos/web start",
+    "web:lint": "pnpm --filter @vamos/web lint",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix"
   },
   "devDependencies": {
     "@types/node": "^20.8.0",
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
     "dotenv-cli": "^11.0.0",
+    "eslint": "^8.56.0",
     "turbo": "^1.10.16",
     "typescript": "^5.2.2"
   },
