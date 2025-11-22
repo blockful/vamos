@@ -9,22 +9,24 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
 export function Navbar() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
   const { context } = useMiniApp();
   const router = useRouter();
 
-  // Get wallet balance
+  // Get wallet balance for the current chain
   const { data: balance, isLoading: isLoadingBalance } = useBalance({
     address: address,
+    chainId: chain?.id,
   });
 
   // Debug logs
   useEffect(() => {
     console.log("Navbar - Address:", address);
+    console.log("Navbar - Chain:", chain);
     console.log("Navbar - Balance:", balance);
     console.log("Navbar - Is Loading Balance:", isLoadingBalance);
-  }, [address, balance, isLoadingBalance]);
+  }, [address, chain, balance, isLoadingBalance]);
 
   // Extract user data from context
   const user = context?.user;
