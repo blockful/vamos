@@ -58,7 +58,7 @@ if (!network) {
   const cdp = new CdpClient();
 
   // Step 1: Create or use existing EVM account
-  const account = await cdp.evm.getOrCreateAccount({ name: `${network} Server Wallet` });
+  const account = await cdp.evm.getAccount({ address: "0x401c024830be86498085280d90c37a04c3999f5f" });
   console.log("Server wallet address:", account.address);
 
 
