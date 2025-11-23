@@ -61,8 +61,7 @@ export function usePlacePrediction() {
             address: VAMOS_CONTRACT_ADDRESS,
             abi: VamosAbi,
             functionName: "placePrediction",
-            // args: [marketId, outcomeId, amount],
-            args: [1n, 0n, 10n],
+            args: [marketId, outcomeId, amount],
         });
     };
 
