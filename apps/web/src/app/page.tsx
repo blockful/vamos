@@ -21,11 +21,13 @@ import { useMarkets, transformMarketForUI } from "@/hooks/use-markets";
 import { formatCurrency } from "@/lib/utils";
 import { useEnsAddress } from "@/hooks/use-ens";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Markets() {
   const { isMiniAppReady } = useMiniApp();
   const { address } = useAccount();
   const router = useRouter();
+  const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState<string>("");
   const [judgeInput, setJudgeInput] = useState<string>("");
@@ -70,10 +72,21 @@ export default function Markets() {
   // Update markets list and close modal when transaction is confirmed
   useEffect(() => {
     if (isConfirmed && hash) {
+      toast({
+        title: "Market Created Successfully! 🎉",
+        description: `Your prediction market has been created. Transaction: ${hash.slice(
+          0,
+          10
+        )}...`,
+      });
       setIsModalOpen(false);
       setFormError("");
+      // Refetch markets after a short delay to ensure indexer has processed
+      setTimeout(() => {
+        refetch();
+      }, 2000);
     }
-  }, [isConfirmed, hash]);
+  }, [isConfirmed, hash, toast, refetch]);
 
   // Formik form
   const formik = useFormik({
@@ -490,19 +503,8 @@ export default function Markets() {
             {isConfirmed && hash && (
               <div className="space-y-3">
                 <p className="text-sm text-green-600 mt-2 bg-green-50 p-3 rounded-md border border-green-200">
-                  ✓ Market created successfully! TX: {hash.slice(0, 10)}...
+                  ✓ Market created successfully! Redirecting...
                 </p>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    formik.resetForm();
-                    refetch();
-                  }}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white"
-                >
-                  View Markets
-                </Button>
               </div>
             )}
           </form>
