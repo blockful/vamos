@@ -63,7 +63,7 @@ export default function Markets() {
         setFormError("");
 
         // Determine judge address
-        let judgeAddress =
+        const judgeAddress =
           values.judge ||
           address ||
           "0x0000000000000000000000000000000000000000";

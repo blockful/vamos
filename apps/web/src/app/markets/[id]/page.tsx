@@ -3,123 +3,45 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useParams, useRouter } from "next/navigation";
 import { Share2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-// Mock data - should match the data from markets page
-const MOCK_MARKETS = [
-  {
-    id: 1,
-    title: "Match: Alex x Jason",
-    description: "A bet about a tennis match",
-    judge: "isadorable.eth",
-    icon: "🎾",
-    status: "Betting Open",
-    totalVolume: 100,
-    options: [
-      {
-        name: "Alex",
-        percentage: 65,
-        totalAmount: 50,
-        bets: [
-          { user: "User 1", amount: 30, avatar: null },
-          { user: "User 2", amount: 50, avatar: null },
-          { user: "User 3", amount: 100, avatar: null },
-        ],
-      },
-      {
-        name: "Jason",
-        percentage: 35,
-        totalAmount: 50,
-        bets: [
-          { user: "User 4", amount: 30, avatar: null },
-          { user: "User 5", amount: 20, avatar: null },
-          { user: "User 6", amount: 50, avatar: null },
-        ],
-      },
-    ],
-    chartData: [
-      { timestamp: 1, option1: 45, option2: 55 },
-      { timestamp: 2, option1: 52, option2: 48 },
-      { timestamp: 3, option1: 48, option2: 52 },
-      { timestamp: 4, option1: 55, option2: 45 },
-      { timestamp: 5, option1: 58, option2: 42 },
-      { timestamp: 6, option1: 53, option2: 47 },
-      { timestamp: 7, option1: 60, option2: 40 },
-      { timestamp: 8, option1: 65, option2: 35 },
-    ],
-  },
-  {
-    id: 2,
-    title: "Match: Maria x Sofia",
-    description: "A bet about a basketball match",
-    judge: "basketballjudge.eth",
-    icon: "🏀",
-    status: "Betting Open",
-    totalVolume: 85,
-    options: [
-      {
-        name: "Maria",
-        percentage: 48,
-        totalAmount: 40,
-        bets: [{ user: "User 1", amount: 30, avatar: null }],
-      },
-      {
-        name: "Sofia",
-        percentage: 52,
-        totalAmount: 45,
-        bets: [{ user: "User 2", amount: 30, avatar: null }],
-      },
-    ],
-    chartData: [
-      { timestamp: 1, option1: 50, option2: 50 },
-      { timestamp: 2, option1: 48, option2: 52 },
-    ],
-  },
-  {
-    id: 3,
-    title: "Match: Bruno x Lucas",
-    description: "A bet about a soccer match",
-    judge: "soccerref.eth",
-    icon: "⚽",
-    status: "Betting Closed",
-    totalVolume: 120,
-    options: [
-      {
-        name: "Bruno",
-        percentage: 70,
-        totalAmount: 84,
-        bets: [{ user: "User 1", amount: 30, avatar: null }],
-      },
-      {
-        name: "Lucas",
-        percentage: 30,
-        totalAmount: 36,
-        bets: [{ user: "User 2", amount: 30, avatar: null }],
-      },
-    ],
-    chartData: [
-      { timestamp: 1, option1: 60, option2: 40 },
-      { timestamp: 2, option1: 70, option2: 30 },
-    ],
-  },
-];
+import { useMarket, transformMarketForDetailsUI } from "@/hooks/use-markets";
 
 export default function MarketDetails() {
   const { isMiniAppReady } = useMiniApp();
   const params = useParams();
   const router = useRouter();
-  const marketId = parseInt(params.id as string);
+  const marketId = params.id as string;
 
-  const market = MOCK_MARKETS.find((m) => m.id === marketId);
+  // Fetch market data from API
+  const { data: apiMarket, isLoading, error } = useMarket(marketId);
 
-  if (!isMiniAppReady) {
+  // Transform market data for UI
+  const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
+
+  if (!isMiniAppReady || isLoading) {
     return (
       <main className="flex-1">
         <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
           <div className="w-full max-w-md mx-auto p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-gray-600">
+              {!isMiniAppReady ? "Loading..." : "Loading market..."}
+            </p>
           </div>
         </section>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">Error loading market</p>
+            <p className="text-gray-600 mb-4">{error.message}</p>
+            <Button onClick={() => router.back()}>Go Back</Button>
+          </div>
+        </div>
       </main>
     );
   }
