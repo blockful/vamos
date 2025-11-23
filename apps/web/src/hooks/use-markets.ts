@@ -53,23 +53,23 @@ interface MarketsResponse {
 // GraphQL query
 const MARKETS_QUERY = `
   query Markets {
-    marketss {
-      items {
-        question
-        status
-        totalPool
-        createdAt
-        id
-        outcomes {
-          items {
-            totalAmount
-            description
-            outcomeIndex
-          }
+  marketss(orderBy: "createdAt", orderDirection: "desc") {
+    items {
+      question
+      status
+      totalPool
+      createdAt
+      id
+      outcomes {
+        items {
+          totalAmount
+          description
+          outcomeIndex
         }
       }
     }
   }
+}
 `;
 
 const API_URL = process.env.NEXT_PUBLIC_GRAPHQL_API_URL as string;
