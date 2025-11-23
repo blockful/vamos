@@ -1,19 +1,58 @@
 import { CdpClient } from "@coinbase/cdp-sdk";
-import { http, createPublicClient, parseEther, parseAbiItem, extractChain } from "viem";
-import { base, baseSepolia, celo, celoSepolia, sepolia } from "viem/chains";
+import { http, createPublicClient, extractChain, encodeFunctionData, parseAbi } from "viem";
+import {
+  base,
+  baseSepolia,
+  celo,
+  celoSepolia,
+  sepolia
+} from "viem/chains";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-// Vamos contract ABI for MarketResolved event
-const VAMOS_ABI = [
-  parseAbiItem('event MarketResolved(uint256 indexed marketId, uint256 indexed winningOutcome)')
-] as const;
+const VAMOS_ABI = parseAbi([
+  'event MarketResolved(uint256 indexed marketId, uint256 indexed winningOutcome)',
+  'function distribute(uint256 marketId) external returns (uint256 processed)'
+])
 
-// Configure your deployed Vamos contract address
 const VAMOS_CONTRACT_ADDRESS = process.env.VAMOS_CONTRACT_ADDRESS as `0x${string}`;
 const RPC_URL = process.env.RPC_URL as string
 const CHAIN_ID = process.env.CHAIN_ID as string
+
+export const SendEvmTransactionBodyNetwork = {
+  base: "base",
+  "base-sepolia": "base-sepolia",
+  ethereum: "ethereum",
+  sepolia: "ethereum-sepolia",
+  avalanche: "avalanche",
+  polygon: "polygon",
+  optimism: "optimism",
+  arbitrum: "arbitrum",
+} as const;
+
+const chain = extractChain({
+  id: Number(CHAIN_ID) as any, chains: [
+    base,
+    baseSepolia,
+    celoSepolia,
+    celo,
+    sepolia
+  ]
+});
+
+if (!chain) {
+  console.error("Invalid chain:", CHAIN_ID);
+  process.exit(1);
+}
+
+const network = SendEvmTransactionBodyNetwork[
+  chain.name.toLowerCase().split(" ").join("-") as keyof typeof SendEvmTransactionBodyNetwork];
+
+if (!network) {
+  console.error("Invalid network:", chain.name);
+  process.exit(1);
+}
 
 (async () => {
   const cdp = new CdpClient();
@@ -22,17 +61,10 @@ const CHAIN_ID = process.env.CHAIN_ID as string
   const account = await cdp.evm.createAccount();
   console.log("Server wallet address:", account.address);
 
+
   // Step 2: Create public client for listening to events
   const publicClient = createPublicClient({
-    chain: extractChain({
-      id: Number(CHAIN_ID) as any, chains: [
-        base,
-        baseSepolia,
-        celoSepolia,
-        celo,
-        sepolia
-      ]
-    }),
+    chain,
     transport: http(RPC_URL),
   });
 
@@ -47,6 +79,8 @@ const CHAIN_ID = process.env.CHAIN_ID as string
       for (const log of logs) {
         const { marketId, winningOutcome } = log.args;
 
+        if (!marketId) return;
+
         console.log({
           event: "MarketResolved",
           marketId,
@@ -54,20 +88,25 @@ const CHAIN_ID = process.env.CHAIN_ID as string
           transactionHash: log.transactionHash,
         });
 
-        // try {
-        //   const result = await cdp.evm.sendTransaction({
-        //     address: account.address,
-        //     transaction: {
-        //       to: "0x...",
-        //       value: parseEther("0.0001"),
-        //     },
-        //     network: "base-sepolia",
-        //   });
-        //   console.log(`Action executed: ${result.transactionHash}`);
+        try {
+          const result = await cdp.evm.sendTransaction({
+            address: account.address,
+            transaction: {
+              to: VAMOS_CONTRACT_ADDRESS,
+              data: encodeFunctionData({
+                abi: VAMOS_ABI,
+                functionName: "distribute",
+                args: [marketId],
+              }),
+            },
+            network,
+          });
 
-        // } catch (error) {
-        //   console.error("Error executing automated action:", error);
-        // }
+          console.log(`Action executed: ${result.transactionHash}`);
+
+        } catch (error) {
+          console.error("Error executing automated action:", error);
+        }
       }
     },
   });
