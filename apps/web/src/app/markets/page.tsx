@@ -240,10 +240,10 @@ export default function Markets() {
         </div>
       </section>
 
-      {/* Floating Add Button */}
+      {/* Fixed Add Button */}
       <Button
         size="icon"
-        className="fixed bottom-8 right-8 w-16 h-16 bg-[#FEABEF] hover:bg-[#ff9be0] text-black rounded-full shadow-2xl transition-all hover:scale-110 z-50"
+        className="fixed bottom-4 right-2 w-16 h-16 bg-[#FEABEF] hover:bg-[#ff9be0] text-black rounded-full shadow-2xl transition-all hover:scale-110 z-50 pointer-events-auto"
         onClick={() => setIsModalOpen(true)}
       >
         <Plus className="h-8 w-8" />
@@ -251,14 +251,14 @@ export default function Markets() {
 
       {/* Create Market Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#FCFDF5]">
+        <DialogContent className="max-w-2xl h-screen max-h-screen overflow-y-auto bg-[#FCFDF5]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-black">
+            <DialogTitle className="text-2xl font-semibold text-black text-left">
               Create bet
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={formik.handleSubmit} className="space-y-6 mt-6">
+          <form onSubmit={formik.handleSubmit} className="space-y-6">
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="title" className="text-sm font-medium text-black">
@@ -267,10 +267,9 @@ export default function Markets() {
               <Input
                 id="title"
                 name="title"
-                placeholder="Enter market title"
                 value={formik.values.title}
                 onChange={formik.handleChange}
-                className="w-full border-gray-300"
+                className="w-full border-2 border-[#111909] rounded-lg"
               />
             </div>
 
@@ -285,10 +284,9 @@ export default function Markets() {
               <Textarea
                 id="description"
                 name="description"
-                placeholder="Enter market description"
                 value={formik.values.description}
                 onChange={formik.handleChange}
-                className="w-full min-h-[100px] border-gray-300"
+                className="w-full min-h-[80px] border-2 border-[#111909] rounded-lg"
               />
             </div>
 
@@ -303,7 +301,7 @@ export default function Markets() {
                 placeholder="Enter judge name or address"
                 value={formik.values.judge}
                 onChange={formik.handleChange}
-                className="w-full border-gray-300"
+                className="w-full border-2 border-[#111909] rounded-lg"
               />
             </div>
 
