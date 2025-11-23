@@ -137,13 +137,15 @@ export function useMarkets() {
 
 /**
  * Hook to fetch a specific market by ID
+ * @param marketId - The ID of the market to fetch
+ * @param userAddress - Optional user address to filter bets for "Your bet" display
  */
-export function useMarket(marketId: string) {
+export function useMarket(marketId: string, userAddress?: string) {
     return useQuery({
-        queryKey: ["market", marketId],
+        queryKey: ["market", marketId, userAddress],
         queryFn: async (): Promise<Market | null> => {
             const MARKET_QUERY = `
-                query Market($id: String!) {
+                query Market($id: String!, $userAddress: String) {
                     markets(id: $id) {
                         id
                         judge
@@ -156,7 +158,7 @@ export function useMarket(marketId: string) {
                                 id
                                 outcomeIndex
                                 totalAmount
-                                bets {
+                                bets(where: {user: $userAddress}) {
                                     items {
                                         id
                                         amount
@@ -182,7 +184,10 @@ export function useMarket(marketId: string) {
                 },
                 body: JSON.stringify({
                     query: MARKET_QUERY,
-                    variables: { id: marketId },
+                    variables: { 
+                        id: marketId,
+                        userAddress: userAddress?.toLowerCase() // Normalize address to lowercase
+                    },
                 }),
             });
 
@@ -214,15 +219,15 @@ export function useOutcome(outcomeId: string) {
                         totalAmount
                         id
                         outcomeIndex
-                        bets {
-                            items {
-                                id
-                                amount
-                                lastUpdated
-                                marketId
-                                outcomeId
-                                outcomeIndex
-                                user
+                        bets(orderBy: "amount", orderDirection: "desc") {
+                        items {
+                            id
+                            amount
+                            lastUpdated
+                            marketId
+                            outcomeId
+                            outcomeIndex
+                            user
                             }
                         }
                     }
@@ -255,6 +260,22 @@ export function useOutcome(outcomeId: string) {
 }
 
 /**
+ * Helper function to calculate user's bet amount for a specific outcome
+ */
+export function calculateUserBetForOutcome(outcome: Outcome): number {
+    if (!outcome.bets?.items || outcome.bets.items.length === 0) {
+        return 0;
+    }
+    
+    // Sum all bets from the user (should typically be just one per outcome)
+    const totalUserBet = outcome.bets.items.reduce((sum, bet) => {
+        return sum + parseFloat(formatUnits(BigInt(bet.amount), 18));
+    }, 0);
+    
+    return totalUserBet;
+}
+
+/**
  * Helper function to transform API market to UI format
  */
 export function transformMarketForUI(market: Market) {
@@ -264,12 +285,14 @@ export function transformMarketForUI(market: Market) {
     const options = market.outcomes.items.map((outcome) => {
         const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
+        const userBet = calculateUserBetForOutcome(outcome);
 
         return {
             id: outcome.outcomeIndex,
             name: outcome.description,
             percentage,
             totalAmount: amount,
+            userBet,
         };
     });
 
@@ -310,11 +333,13 @@ export function transformMarketForDetailsUI(market: Market) {
     const options = market.outcomes.items.map((outcome) => {
         const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
+        const userBet = calculateUserBetForOutcome(outcome);
 
         return {
             name: outcome.description,
             percentage,
             totalAmount: amount,
+            userBet,
             bets: [], // Bets will need a separate query if needed
         };
     });

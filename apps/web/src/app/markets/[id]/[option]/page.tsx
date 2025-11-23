@@ -3,7 +3,6 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useParams, useRouter } from "next/navigation";
 import { Share2, ChevronLeft, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Drawer,
   DrawerContent,
@@ -15,7 +14,7 @@ import {
   usePlacePrediction,
   useTokenApproval,
 } from "@/hooks/use-vamos-contract";
-import { useMarket, transformOutcomeForUI } from "@/hooks/use-markets";
+import { useOutcome, transformOutcomeForUI } from "@/hooks/use-markets";
 import {
   LineChart,
   Line,
@@ -26,8 +25,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { parseUnits } from "viem";
-import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
-import { formatCurrency } from "@/lib/utils";
+import { useEnsNames } from "@/hooks/use-ens";
 import { useToast } from "@/hooks/use-toast";
 import { getFirstSentence } from "@/app/helpers/getFirstSentence";
 
@@ -58,15 +56,18 @@ export default function OptionDetails() {
     refetchAllowance,
   } = useTokenApproval();
 
-  // Fetch market data to get the outcome
-  const {
-    data: marketData,
-    isLoading: isLoadingMarket,
-    error: marketError,
-  } = useMarket(marketId);
+  // Construct outcome ID from market ID and option index
+  // Format: marketId-outcomeIndex (e.g., "1-0", "1-1")
+  const outcomeId = `${marketId}-${optionIndex}`;
 
-  // Get the specific outcome from the market data
-  const outcomeData = marketData?.outcomes.items[optionIndex];
+  // Fetch outcome data (showing all bets ordered by amount)
+  const {
+    data: outcomeData,
+    isLoading: isLoadingOutcome,
+    error: outcomeError,
+  } = useOutcome(outcomeId);
+
+  // Transform outcome data for UI
   const option = outcomeData ? transformOutcomeForUI(outcomeData) : null;
 
   // Get all unique addresses from bets for ENS resolution
@@ -250,7 +251,7 @@ export default function OptionDetails() {
     // TODO: Implement share logic
   };
 
-  if (!isMiniAppReady || isLoadingMarket) {
+  if (!isMiniAppReady || isLoadingOutcome) {
     return (
       <main className="flex-1">
         <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -265,15 +266,15 @@ export default function OptionDetails() {
     );
   }
 
-  if (marketError || !option) {
+  if (outcomeError || !option) {
     return (
       <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="max-w-2xl mx-auto px-4 py-8 text-center">
           <p className="text-red-600 mb-4">
-            {marketError ? "Error loading option" : "Option not found"}
+            {outcomeError ? "Error loading option" : "Option not found"}
           </p>
-          {marketError && (
-            <p className="text-gray-600 mb-4">{marketError.message}</p>
+          {outcomeError && (
+            <p className="text-gray-600 mb-4">{outcomeError.message}</p>
           )}
           <Button onClick={() => router.back()}>Go Back</Button>
         </div>

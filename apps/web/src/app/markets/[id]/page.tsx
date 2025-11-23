@@ -5,6 +5,7 @@ import { Share2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, RechartsPrimitive } from "@/components/ui/chart";
 import { useState } from "react";
+import { useAccount } from "wagmi";
 
 import { useMarket, transformMarketForDetailsUI } from "@/hooks/use-markets";
 import { formatCurrency } from "@/lib/utils";
@@ -16,9 +17,10 @@ export default function MarketDetails() {
   const router = useRouter();
   const [isExiting, setIsExiting] = useState(false);
   const marketId = parseInt(params.id as string);
+  const { address } = useAccount();
 
-  // Fetch market data from API
-  const { data: apiMarket, isLoading, error } = useMarket(marketId.toString());
+  // Fetch market data from API with user address for filtering user bets
+  const { data: apiMarket, isLoading, error } = useMarket(marketId.toString(), address);
 
   const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
 
@@ -273,6 +275,7 @@ export default function MarketDetails() {
                 : latestPercentages.option2;
             const totalAmount =
               index === 0 ? totalAmounts.option1 : totalAmounts.option2;
+            const userBet = option.userBet || 0;
 
             return (
               <button
@@ -319,7 +322,7 @@ export default function MarketDetails() {
                           Your bet
                         </p>
                         <p className="text-sm font-semibold text-black">
-                          $0.00
+                          ${formatCurrency(userBet)}
                         </p>
                       </div>
                     </div>
