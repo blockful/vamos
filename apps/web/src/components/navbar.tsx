@@ -60,8 +60,33 @@ export function Navbar() {
   // Handle disconnect
   const handleDisconnect = async () => {
     try {
-      await disconnect();
-      setIsOpen(false);
+      // Mark that we're intentionally disconnecting
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("walletDisconnected", "true");
+      }
+
+      // Force disconnect from all connectors
+      disconnect();
+
+      // Clear any persisted wallet state
+      if (typeof window !== "undefined") {
+        // Clear wagmi storage
+        localStorage.removeItem("wagmi.store");
+        localStorage.removeItem("wagmi.wallet");
+        localStorage.removeItem("wagmi.connected");
+
+        // Clear any other wallet-related storage
+        Object.keys(localStorage).forEach((key) => {
+          if (key.includes("wagmi") || key.includes("wallet")) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+
+      // Small delay to ensure state is cleared before redirect
+      setTimeout(() => {
+        router.push("/");
+      }, 100);
     } catch (error) {
       console.error("Error disconnecting:", error);
       // Still try to redirect even if there's an error
