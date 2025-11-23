@@ -450,7 +450,8 @@ export default function OptionDetails() {
       <div className="fixed bottom-0 left-0 right-0 bg-[#FCFDF5] p-6 border-t-2 border-[#111909]">
         <Button
           onClick={() => setIsDrawerOpen(true)}
-          className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-medium py-6 text-lg rounded-full border-2 border-[#111909]"
+          disabled={outcomeData?.market?.status !== "OPEN"}
+          className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] disabled:bg-gray-300 disabled:cursor-not-allowed text-black font-medium py-6 text-lg rounded-full border-2 border-[#111909]"
           style={{ boxShadow: "2px 2px 0px #111909" }}
         >
           Place bet

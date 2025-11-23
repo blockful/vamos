@@ -508,7 +508,6 @@ export default function MarketDetails() {
             return (
               <button
                 key={index}
-                disabled={market.status !== "OPEN"}
                 onClick={() =>
                   router.push(`/markets/${compositeMarketId}/${index}`)
                 }
@@ -567,11 +566,9 @@ export default function MarketDetails() {
                       />
                     </div>
                   ) : (
-                    market.status === "OPEN" && (
-                      <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-black flex-shrink-0 ml-4">
-                        <ChevronRight className="h-5 w-5 text-black" />
-                      </div>
-                    )
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-black flex-shrink-0 ml-4">
+                      <ChevronRight className="h-5 w-5 text-black" />
+                    </div>
                   )}
                 </div>
               </button>

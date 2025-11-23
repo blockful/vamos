@@ -19,6 +19,9 @@ interface Outcome {
     id: string;
     outcomeIndex: number;
     totalAmount: string;
+    market?: {
+        status: string;
+    };
     bets?: {
         items: Bet[];
     };
@@ -280,6 +283,9 @@ export function useOutcome(outcomeId: string) {
                         totalAmount
                         id
                         outcomeIndex
+                        market {
+                            status
+                        }
                         bets(orderBy: "amount", orderDirection: "desc") {
                         items {
                             id
