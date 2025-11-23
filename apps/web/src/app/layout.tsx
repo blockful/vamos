@@ -50,10 +50,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="relative flex min-h-screen flex-col">
+        <div className="relative flex min-h-screen flex-col items-center">
           <Providers>
             <Navbar />
-            <main className="flex-1 pt-24">{children}</main>
+            <main className="flex-1 pt-24 w-full max-w-[600px]">{children}</main>
             <Toaster />
           </Providers>
         </div>
