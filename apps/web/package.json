@@ -1,5 +1,5 @@
 {
-  "name": "web",
+  "name": "@vamos/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -29,6 +29,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^3.4.1",
+    "react-query": "^3.39.3",
     "tailwind-merge": "^2.6.0",
     "vaul": "^1.1.2",
     "viem": "^2.27.2",
@@ -41,6 +42,7 @@
     "@types/react-dom": "^18.2.0",
     "@typescript-eslint/eslint-plugin": "^8.47.0",
     "autoprefixer": "^10.4.17",
+    "dotenv": "^17.2.3",
     "eslint": "^8.50.0",
     "eslint-config-next": "^14.0.0",
     "postcss": "^8.4.35",

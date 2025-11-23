@@ -1,14 +1,38 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["**/.env.*local"],
+  "globalDependencies": [".env", "**/.env.*local"],
+  "globalEnv": [
+    "RPC_URL",
+    "PRIVATE_KEY",
+    "ETHERSCAN_API_KEY",
+    "NEXT_PUBLIC_*",
+    "DATABASE_URL",
+    "PONDER_*",
+    "NODE_ENV"
+  ],
   "pipeline": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "out/**"],
+      "env": [
+        "RPC_URL",
+        "PRIVATE_KEY",
+        "ETHERSCAN_API_KEY",
+        "NEXT_PUBLIC_*",
+        "DATABASE_URL"
+      ]
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": [
+        "RPC_URL",
+        "PRIVATE_KEY",
+        "ETHERSCAN_API_KEY",
+        "NEXT_PUBLIC_*",
+        "DATABASE_URL",
+        "PONDER_*"
+      ]
     },
     "lint": {},
     "type-check": {

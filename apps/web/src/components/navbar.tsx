@@ -1,7 +1,7 @@
 "use client";
 
 import { LogOut } from "lucide-react";
-import { useAccount, useDisconnect, useBalance } from "wagmi";
+import { useAccount, useDisconnect, useBalance, useChainId } from "wagmi";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useMiniApp } from "@/contexts/miniapp-context";
@@ -9,16 +9,19 @@ import { useEffect, useState, useRef } from "react";
 
 export function Navbar() {
   const router = useRouter();
-  const { address } = useAccount();
+  const { address, isConnected: wagmiIsConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { context } = useMiniApp();
   const [isOpen, setIsOpen] = useState(false);
+  const chainId = useChainId();
 
-  const isConnected = true;
+  // Only consider connected if we have a valid address
+  const isConnected = wagmiIsConnected && !!address;
 
   // Get wallet balance
   const { data: balanceData, isLoading: isLoadingBalance } = useBalance({
     address: address,
+    chainId: chainId,
   });
 
   // Use actual balance data or fallback
@@ -29,10 +32,18 @@ export function Navbar() {
 
   // Debug logs
   useEffect(() => {
-    console.log("Navbar - Address:", address);
-    console.log("Navbar - Balance:", balance);
-    console.log("Navbar - Is Loading Balance:", isLoadingBalance);
-  }, [address, balance, isLoadingBalance]);
+    if (
+      !isConnected &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/"
+    ) {
+      // If not connected and not on home page, check if we should redirect
+      const wasDisconnected = sessionStorage.getItem("walletDisconnected");
+      if (wasDisconnected === "true") {
+        sessionStorage.removeItem("walletDisconnected");
+      }
+    }
+  }, [isConnected]);
 
   // Extract user data from context
   const user = context?.user;
@@ -50,10 +61,37 @@ export function Navbar() {
   // Handle disconnect
   const handleDisconnect = async () => {
     try {
-      await disconnect();
-      setIsOpen(false);
+      // Mark that we're intentionally disconnecting
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("walletDisconnected", "true");
+      }
+
+      // Force disconnect from all connectors
+      disconnect();
+
+      // Clear any persisted wallet state
+      if (typeof window !== "undefined") {
+        // Clear wagmi storage
+        localStorage.removeItem("wagmi.store");
+        localStorage.removeItem("wagmi.wallet");
+        localStorage.removeItem("wagmi.connected");
+
+        // Clear any other wallet-related storage
+        Object.keys(localStorage).forEach((key) => {
+          if (key.includes("wagmi") || key.includes("wallet")) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+
+      // Small delay to ensure state is cleared before redirect
+      setTimeout(() => {
+        router.push("/");
+      }, 100);
     } catch (error) {
       console.error("Error disconnecting:", error);
+      // Still try to redirect even if there's an error
+      router.push("/");
     }
   };
 
@@ -62,14 +100,18 @@ export function Navbar() {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isOpen]);
 
@@ -122,7 +164,9 @@ export function Navbar() {
               {isOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                   <div className="px-4 py-3 border-b border-gray-200">
-                    <p className="text-sm font-medium text-gray-700">{displayName}</p>
+                    <p className="text-sm font-medium text-gray-700">
+                      {displayName}
+                    </p>
                   </div>
                   <button
                     onClick={handleDisconnect}

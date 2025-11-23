@@ -3,9 +3,7 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useState } from "react";
 import { useFormik } from "formik";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
-import Image from "next/image";
-import { useAccount } from "wagmi";
+import { Plus, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,54 +14,37 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-
-// Mock data for markets
-const MOCK_MARKETS = [
-  {
-    id: 1,
-    title: "Tennis Match: Alex vs Jason",
-    status: "BETS OPEN",
-    volume: "$100.00",
-    icon: "🎾",
-    options: [
-      { name: "Alex", percentage: 80, color: "bg-[#A4D18E]" },
-      { name: "Jason", percentage: 20, color: "bg-yellow-200" },
-    ],
-  },
-  {
-    id: 2,
-    title: "Tennis Match: Alex vs Jason",
-    status: "BETS OPEN",
-    volume: "$100.00",
-    icon: "🎾",
-    options: [
-      { name: "Alex", percentage: 80, color: "bg-[#A4D18E]" },
-      { name: "Jason", percentage: 20, color: "bg-yellow-200" },
-    ],
-  },
-  {
-    id: 3,
-    title: "Volleyball Match: Isa vs Dani",
-    status: "BETS CLOSED",
-    volume: "$200.00",
-    icon: "🏐",
-    options: [
-      { name: "Isa", percentage: 60, color: "bg-pink-300" },
-      { name: "Dani", percentage: 40, color: "bg-purple-300" },
-    ],
-  },
-];
+import { useCreateMarket } from "@/hooks/use-vamos-contract";
+import { useAccount } from "wagmi";
+import { isAddress } from "viem";
+import { useMarkets, transformMarketForUI } from "@/hooks/use-markets";
 
 export default function Markets() {
-  const { isMiniAppReady, context } = useMiniApp();
-  const { address, isConnected } = useAccount();
+  const { isMiniAppReady } = useMiniApp();
+  const { address } = useAccount();
   const router = useRouter();
-  const [markets, setMarkets] = useState(MOCK_MARKETS);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formError, setFormError] = useState<string>("");
 
-  // Extract user data from context
-  const user = context?.user;
-  const pfpUrl = user?.pfpUrl;
+  // Fetch markets from API
+  const {
+    data: apiMarkets,
+    isLoading: isLoadingMarkets,
+    error: marketsError,
+    refetch,
+  } = useMarkets();
+
+  const {
+    createMarket,
+    isPending,
+    isConfirming,
+    isConfirmed,
+    error: contractError,
+    hash,
+  } = useCreateMarket();
+
+  // Transform API markets to UI format
+  const markets = apiMarkets?.map(transformMarketForUI) || [];
 
   // Formik form
   const formik = useFormik({
@@ -71,35 +52,94 @@ export default function Markets() {
       title: "",
       description: "",
       judge: "",
-      optionA: "",
-      optionB: "",
+      options: ["", ""], // Array de strings para as opções
     },
-    onSubmit: (values) => {
-      // Add new market to the list
-      const newMarket = {
-        id: markets.length + 1,
-        title: values.title,
-        status: "BETS OPEN",
-        volume: "$0.00",
-        icon: "📊",
-        options: [
-          { name: values.optionA, percentage: 50, color: "bg-[#A4D18E]" },
-          { name: values.optionB, percentage: 50, color: "bg-yellow-200" },
-        ],
-      };
-      setMarkets([...markets, newMarket]);
-      setIsModalOpen(false);
-      formik.resetForm();
+    onSubmit: async (values) => {
+      try {
+        // Clear previous errors
+        setFormError("");
+
+        // Determine judge address
+        const judgeAddress =
+          values.judge ||
+          address ||
+          "0x0000000000000000000000000000000000000000";
+
+        // Validate if it's a valid address
+        if (!isAddress(judgeAddress)) {
+          setFormError("Invalid judge address");
+          return;
+        }
+
+        // Filter empty options
+        const validOptions = values.options.filter((opt) => opt.trim() !== "");
+
+        if (validOptions.length < 2) {
+          setFormError("You need at least 2 valid options");
+          return;
+        }
+
+        await createMarket(
+          values.title, // question
+          judgeAddress, // judge (now a valid Address)
+          validOptions // outcomes
+        );
+
+        // Refetch markets after creating a new one
+        await refetch();
+
+        // Close modal and reset form
+        setIsModalOpen(false);
+        formik.resetForm();
+      } catch (error) {
+        console.error("Error creating market:", error);
+      }
     },
   });
 
-  if (!isMiniAppReady) {
+  // Functions to add/remove options
+  const addOption = () => {
+    formik.setFieldValue("options", [...formik.values.options, ""]);
+  };
+
+  const removeOption = (index: number) => {
+    if (formik.values.options.length > 2) {
+      const newOptions = formik.values.options.filter((_, i) => i !== index);
+      formik.setFieldValue("options", newOptions);
+    }
+  };
+
+  if (!isMiniAppReady || isLoadingMarkets) {
     return (
       <main className="flex-1">
         <section className="flex items-center justify-center min-h-screen bg-[#111909]">
           <div className="w-full max-w-md mx-auto p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FEABEF] mx-auto mb-4"></div>
-            <p className="text-[#FCFDF5]">Loading...</p>
+            <p className="text-[#FCFDF5]">
+              {!isMiniAppReady ? "Loading..." : "Loading markets..."}
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  // Show error state if markets failed to load
+  if (marketsError) {
+    return (
+      <main className="flex-1 min-h-screen bg-[#111909]">
+        <section className="flex items-center justify-center min-h-screen">
+          <div className="w-full max-w-md mx-auto p-8 text-center">
+            <p className="text-red-400 mb-4">Error loading markets</p>
+            <p className="text-[#FCFDF5] text-sm mb-4">
+              {marketsError.message}
+            </p>
+            <Button
+              onClick={() => refetch()}
+              className="bg-[#FEABEF] hover:bg-[#ff9be0] text-black"
+            >
+              Try Again
+            </Button>
           </div>
         </section>
       </main>
@@ -109,78 +149,94 @@ export default function Markets() {
   return (
     <main className="flex-1 min-h-screen bg-[#111909]">
       {/* Markets List */}
-      <section className="px-2 pb-2 relative">
-        <div className="max-w-2xl mx-auto space-y-2">
-          {markets.map((market) => (
-            <div
-              key={market.id}
-              className={`rounded-2xl p-5 hover:shadow-lg transition-all cursor-pointer active:scale-95 ${
-                market.status === "BETS OPEN"
-                  ? "bg-[#FCFDF5]"
-                  : "bg-gray-100"
-              }`}
-              onClick={() => router.push(`/markets/${market.id}`)}
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-2xl ${
-                  market.status === "BETS OPEN"
-                    ? "bg-[#FEABEF]"
-                    : "bg-gray-400"
-                }`}>
-                  {market.icon}
-                </div>
-                <div
-                  className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-2 ${
-                    market.status === "BETS OPEN"
-                      ? "bg-[#FEABEF] bg-opacity-40 text-[#CC66BA]"
-                      : "bg-gray-300 text-gray-600"
-                  }`}
-                >
-                  {market.status === "BETS OPEN" && (
-                    <div
-                      className="w-2 h-2 rounded-full bg-[#CC66BA]"
-                      style={{
-                        animation: "pulse-dot 2s infinite",
-                        boxShadow: "0 0 0 0 rgba(204, 102, 186, 0.7)"
-                      }}
-                    />
-                  )}
-                  {market.status}
-                </div>
-              </div>
-
-              {/* Title and Volume */}
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-black mb-1">
-                  {market.title}
-                </h3>
-                <p className="text-sm text-gray-600">Volume: {market.volume}</p>
-              </div>
-
-              {/* Options - Bar Chart Style */}
-              <div className="space-y-2">
-                {market.options.map((option, index) => (
-                  <div key={index} className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${option.color} flex items-center px-3 transition-all duration-300 ${
-                        market.status === "BETS CLOSED" ? "opacity-70" : ""
-                      }`}
-                      style={{ width: `${option.percentage}%` }}
-                    />
-                    <div className="absolute inset-0 flex items-center px-3 justify-between pointer-events-none">
-                      <span className="text-sm font-normal text-black">
-                        {option.name}
-                      </span>
-                      <span className="text-sm font-normal text-black">
-                        {option.percentage}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+      <section className="px-4 pb-24">
+        <div className="max-w-2xl mx-auto space-y-4">
+          {markets.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-[#FCFDF5] text-lg mb-2">No markets yet</p>
+              <p className="text-gray-400 text-sm">
+                Create the first prediction market!
+              </p>
             </div>
-          ))}
+          ) : (
+            markets.map((market) => (
+              <div
+                key={market.id}
+                className={`rounded-2xl p-5 hover:shadow-lg transition-all cursor-pointer active:scale-95 ${
+                  market.status === "BETS OPEN" ? "bg-[#FCFDF5]" : "bg-gray-100"
+                }`}
+                onClick={() => router.push(`/markets/${market.id}`)}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-2xl ${
+                      market.status === "BETS OPEN"
+                        ? "bg-[#FEABEF]"
+                        : "bg-gray-400"
+                    }`}
+                  >
+                    {market.icon}
+                  </div>
+                  <div
+                    className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-2 ${
+                      market.status === "BETS OPEN"
+                        ? "bg-[#FEABEF] bg-opacity-40 text-[#CC66BA]"
+                        : "bg-gray-300 text-gray-600"
+                    }`}
+                  >
+                    {market.status === "BETS OPEN" && (
+                      <div
+                        className="w-2 h-2 rounded-full bg-[#CC66BA]"
+                        style={{
+                          animation: "pulse-dot 2s infinite",
+                          boxShadow: "0 0 0 0 rgba(204, 102, 186, 0.7)",
+                        }}
+                      />
+                    )}
+                    {market.status}
+                  </div>
+                </div>
+
+                {/* Title and Volume */}
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-black mb-1">
+                    {market.title}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Volume: {market.volume}
+                  </p>
+                </div>
+
+                {/* Options - Bar Chart Style */}
+                <div className="space-y-2">
+                  {market.options.map((option, index) => (
+                    <div
+                      key={index}
+                      className="relative h-8 bg-gray-200 rounded-full overflow-hidden"
+                    >
+                      <div
+                        className={`h-full ${
+                          option.color
+                        } flex items-center px-3 transition-all duration-300 ${
+                          market.status === "BETS CLOSED" ? "opacity-70" : ""
+                        }`}
+                        style={{ width: `${option.percentage}%` }}
+                      />
+                      <div className="absolute inset-0 flex items-center px-3 justify-between pointer-events-none">
+                        <span className="text-sm font-normal text-black">
+                          {option.name}
+                        </span>
+                        <span className="text-sm font-normal text-black">
+                          {option.percentage}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
@@ -191,7 +247,7 @@ export default function Markets() {
         onClick={() => setIsModalOpen(true)}
       >
         <Plus className="h-8 w-8" />
-      </Button> 
+      </Button>
 
       {/* Create Market Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
@@ -249,43 +305,82 @@ export default function Markets() {
               />
             </div>
 
-            {/* Option A */}
-            <div className="space-y-2">
-              <Label htmlFor="optionA" className="text-sm font-medium text-black">
-                Option A
-              </Label>
-              <Input
-                id="optionA"
-                name="optionA"
-                placeholder="Enter first option"
-                value={formik.values.optionA}
-                onChange={formik.handleChange}
-                className="w-full border-gray-300"
-              />
-            </div>
+            {/* Options - Dynamic */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Options</Label>
+                <Button
+                  type="button"
+                  onClick={addOption}
+                  size="sm"
+                  variant="outline"
+                  className="text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Option
+                </Button>
+              </div>
 
-            {/* Option B */}
-            <div className="space-y-2">
-              <Label htmlFor="optionB" className="text-sm font-medium text-black">
-                Option B
-              </Label>
-              <Input
-                id="optionB"
-                name="optionB"
-                placeholder="Enter second option"
-                value={formik.values.optionB}
-                onChange={formik.handleChange}
-                className="w-full border-gray-300"
-              />
+              {formik.values.options.map((option, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                    value={option}
+                    onChange={(e) => {
+                      const newOptions = [...formik.values.options];
+                      newOptions[index] = e.target.value;
+                      formik.setFieldValue("options", newOptions);
+                    }}
+                    className="flex-1"
+                  />
+                  {formik.values.options.length > 2 && (
+                    <Button
+                      type="button"
+                      onClick={() => removeOption(index)}
+                      size="icon"
+                      variant="ghost"
+                      className="h-10 w-10 text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
             </div>
 
             {/* Submit Button */}
             <Button
               type="submit"
-              className="w-full bg-[#FEABEF] hover:bg-[#ff9be0] text-black font-semibold py-6 text-lg"
+              disabled={isPending || isConfirming}
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create
+              {isPending
+                ? "Awaiting approval..."
+                : isConfirming
+                ? "Creating market..."
+                : "Create"}
             </Button>
+
+            {/* Form validation error */}
+            {formError && (
+              <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded-md border border-red-200">
+                ⚠️ {formError}
+              </p>
+            )}
+
+            {/* Contract error message */}
+            {contractError && (
+              <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded-md border border-red-200">
+                ⚠️ Error: {contractError.message}
+              </p>
+            )}
+
+            {/* Success message */}
+            {isConfirmed && hash && (
+              <p className="text-sm text-green-600 mt-2 bg-green-50 p-3 rounded-md border border-green-200">
+                ✓ Market created successfully! TX: {hash.slice(0, 10)}...
+              </p>
+            )}
           </form>
         </DialogContent>
       </Dialog>
