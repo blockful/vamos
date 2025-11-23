@@ -62,11 +62,13 @@ export function NetworkSwitcher() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={isPending}
-        className="flex items-center gap-2 px-3 py-2 bg-[#111909] hover:bg-[#111909]/90 disabled:bg-gray-400 text-white font-medium rounded-lg transition-colors"
+        className="flex items-center gap-2 px-2 py-2  disabled:bg-gray-400 text-white font-medium rounded-lg transition-colors"
       >
         <span className="text-lg">{currentNetwork?.icon || "🌐"}</span>
-        <span className="hidden sm:inline">{currentNetwork?.shortName || "Network"}</span>
-        <ChevronDown className="h-4 w-4" />
+        <span className="hidden sm:inline">
+          {currentNetwork?.shortName || "Network"}
+        </span>
+        <ChevronDown className="h-4 w-4 text-gray-400" />
       </button>
 
       {/* Dropdown Menu */}
@@ -99,4 +101,3 @@ export function NetworkSwitcher() {
     </div>
   );
 }
-

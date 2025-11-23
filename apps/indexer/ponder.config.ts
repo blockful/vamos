@@ -16,10 +16,10 @@ export default createConfig({
       id: 42220,
       rpc: process.env.PONDER_RPC_URL_CELO,
     },
-    sepolia: {
-      id: 11155111,
-      rpc: process.env.PONDER_RPC_URL_SEPOLIA,
-    },
+    // sepolia: {
+    //   id: 11155111,
+    //   rpc: process.env.PONDER_RPC_URL_SEPOLIA,
+    // },
   },
   contracts: {
     Vamos: {
