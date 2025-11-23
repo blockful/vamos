@@ -20,22 +20,23 @@ import { useMarkets, transformMarketForUI } from "@/hooks/use-markets";
 import { formatCurrency } from "@/lib/utils";
 import { useEnsAddress } from "@/hooks/use-ens";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
+import { useTokenDecimals } from "@/hooks/use-token-decimals";
 
 export default function Home() {
   const { isMiniAppReady } = useMiniApp();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState<string>("");
   const [judgeInput, setJudgeInput] = useState<string>("");
 
-  // Fetch markets from API
+  // Fetch markets from API filtered by current chain
   const {
     data: apiMarkets,
     isLoading: isLoadingMarkets,
     error: marketsError,
     refetch,
-  } = useMarkets();
+  } = useMarkets(chain?.id);
 
   const {
     createMarket,
@@ -51,8 +52,11 @@ export default function Home() {
     judgeInput && judgeInput.includes(".") ? judgeInput : undefined
   );
 
-  // Transform API markets to UI format
-  const markets = apiMarkets?.map(transformMarketForUI) || [];
+  // Get token decimals for the current chain
+  const { decimals } = useTokenDecimals(chain?.id);
+
+  // Transform API markets to UI format with correct decimals
+  const markets = apiMarkets?.map((market) => transformMarketForUI(market, decimals ?? 18)) || [];
 
   // Collect all unique addresses for ENS resolution
   const addresses = Array.from(
@@ -191,7 +195,7 @@ export default function Home() {
   return (
     <main className="flex-1 min-h-screen bg-[#111909]">
       {/* Markets List */}
-      <section className="px-2 pb-24">
+      <section className="pb-24">
         <div className="max-w-2xl mx-auto space-y-2">
           {markets.length === 0 ? (
             <div className="text-center py-12">
@@ -241,7 +245,7 @@ export default function Home() {
                 </div>
                 {/* Title and Volume */}
                 <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-black mb-1">
+                  <h3 className="text-lg font-semibold text-black mb-1 mt-3">
                     {market.title}
                   </h3>
                   <p className="text-sm text-gray-600">
@@ -452,7 +456,7 @@ export default function Home() {
                     }}
                     className={`flex-1 !border-2 ${
                       option.trim() === ""
-                        ? "!border-red-500"
+                        ? "!border-[#111909]"
                         : "!border-[#111909]"
                     }`}
                   />

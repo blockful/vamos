@@ -9,7 +9,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   usePlacePrediction,
   useTokenApproval,
@@ -19,13 +19,22 @@ import { parseUnits } from "viem";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
 import { useToast } from "@/hooks/use-toast";
 import { getFirstSentence } from "@/app/helpers/getFirstSentence";
+import { useAccount } from "wagmi";
+import { useTokenDecimals } from "@/hooks/use-token-decimals";
 
 export default function OptionDetails() {
   const { isMiniAppReady } = useMiniApp();
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const marketId = params.id as string;
+  const { chain } = useAccount();
+
+  // params.id is the composite ID in format "chainId-marketId" (e.g., "8453-0")
+  const compositeMarketId = params.id as string;
+
+  // Extract the numeric marketId for contract calls
+  const numericMarketId = parseInt(compositeMarketId.split("-")[1] || "0");
+
   const optionIndex = parseInt(params.option as string);
   const [betAmount, setBetAmount] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -33,6 +42,9 @@ export default function OptionDetails() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [needsApproval, setNeedsApproval] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Ref to prevent duplicate prediction placements after approval
+  const isPlacingPredictionRef = useRef(false);
 
   const { placePrediction, isPending, isConfirming, isConfirmed, error } =
     usePlacePrediction();
@@ -47,19 +59,24 @@ export default function OptionDetails() {
     refetchAllowance,
   } = useTokenApproval();
 
-  // Construct outcome ID from market ID and option index
-  // Format: marketId-outcomeIndex (e.g., "1-0", "1-1")
-  const outcomeId = `${marketId}-${optionIndex}`;
+  // Construct outcome ID for indexer query
+  // Format: chainId-marketId-outcomeIndex (e.g., "8453-0-0", "42220-1-1")
+  const outcomeId = `${compositeMarketId}-${optionIndex}`;
 
   // Fetch outcome data (showing all bets ordered by amount)
   const {
     data: outcomeData,
     isLoading: isLoadingOutcome,
     error: outcomeError,
-  } = useOutcome(outcomeId);
+  } = useOutcome(outcomeId || "");
 
-  // Transform outcome data for UI
-  const option = outcomeData ? transformOutcomeForUI(outcomeData) : null;
+  // Get token decimals for the current chain
+  const { decimals } = useTokenDecimals(chain?.id);
+
+  // Transform outcome data for UI with correct decimals
+  const option = outcomeData
+    ? transformOutcomeForUI(outcomeData, decimals ?? 18)
+    : null;
 
   // Get all unique addresses from bets for ENS resolution
   const betAddresses = useMemo(() => {
@@ -103,26 +120,35 @@ export default function OptionDetails() {
         setIsDrawerOpen(false);
         setShowConfirmation(false);
         setBetAmount(0);
+        // Reset the ref for next bet
+        isPlacingPredictionRef.current = false;
       }, 2000);
     }
   }, [isConfirmed, betAmount, toast]);
 
   // Refetch allowance and proceed with prediction after approval
   useEffect(() => {
-    if (isApproveConfirmed && needsApproval) {
+    if (
+      isApproveConfirmed &&
+      needsApproval &&
+      !isPlacingPredictionRef.current
+    ) {
       // After approval, wait a moment for the blockchain state to update, then refetch and place prediction
       const placePredictionAfterApproval = async () => {
+        // Set ref to prevent duplicate calls
+        isPlacingPredictionRef.current = true;
+
         try {
           setIsProcessing(true);
           // Refetch allowance and wait for it
           await refetchAllowance();
 
-          const amountInWei = parseUnits(betAmount.toString(), 18);
+          const amountInWei = parseUnits(betAmount.toString(), decimals ?? 18);
           setNeedsApproval(false);
 
           // Now place the prediction
           await placePrediction(
-            BigInt(marketId),
+            BigInt(numericMarketId),
             BigInt(optionIndex),
             amountInWei
           );
@@ -137,6 +163,8 @@ export default function OptionDetails() {
           });
         } finally {
           setIsProcessing(false);
+          // Reset ref after processing is complete
+          isPlacingPredictionRef.current = false;
         }
       };
       placePredictionAfterApproval();
@@ -146,10 +174,11 @@ export default function OptionDetails() {
     needsApproval,
     refetchAllowance,
     betAmount,
-    marketId,
+    numericMarketId,
     optionIndex,
     placePrediction,
     toast,
+    decimals,
   ]);
 
   const handleIncrement = () => setBetAmount((prev) => prev + 1);
@@ -193,7 +222,8 @@ export default function OptionDetails() {
     try {
       setIsProcessing(true);
 
-      const amountInWei = parseUnits(betAmount.toString(), 6);
+      // Convert bet amount to token units (using actual token decimals)
+      const amountInWei = parseUnits(betAmount.toString(), decimals ?? 18);
 
       // If we're in approval flow, wait for it to complete
       if (needsApproval && (isApprovePending || isApproveConfirming)) {
@@ -221,7 +251,11 @@ export default function OptionDetails() {
 
       // If already approved, place prediction
       setNeedsApproval(false);
-      await placePrediction(BigInt(marketId), BigInt(optionIndex), amountInWei);
+      await placePrediction(
+        BigInt(numericMarketId),
+        BigInt(optionIndex),
+        amountInWei
+      );
     } catch (err) {
       console.error("Error placing prediction:", err);
       setNeedsApproval(false); // Reset state on error
@@ -294,12 +328,13 @@ export default function OptionDetails() {
 
   return (
     <main
-      className={`fixed inset-0 z-50 w-full h-screen max-h-screen overflow-y-auto bg-[#FCFDF5] flex flex-col ${
-        isExiting ? "animate-slide-out-to-right" : "animate-slide-in-from-right"
+      className={`inset-0 z-50 w-full h-screen max-h-screen overflow-y-auto bg-[#111909] flex flex-col items-center px-2 ${
+        isExiting ? "animate-slide-out" : "animate-slide-in"
       }`}
     >
-      {/* Header - Fixed at top */}
-      <div className="sticky top-0 z-40 flex flex-col bg-[#FCFDF5] p-6 border-b-2 border-[#111909] flex-shrink-0">
+      <div className="w-full max-w-[600px] flex flex-col h-full bg-[#FCFDF5]">
+        {/* Header - Fixed at top */}
+        <div className="sticky top-0 z-40 flex flex-col bg-[#FCFDF5] p-6 border-b-2 border-[#111909] flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <Button
             variant="ghost"
@@ -328,8 +363,8 @@ export default function OptionDetails() {
         </div>
       </div>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-6 pb-32">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-6 pb-32">
         {/* Chart */}
         {/* <div className="h-64">
           {option.chartData && option.chartData.length > 0 ? (
@@ -414,8 +449,8 @@ export default function OptionDetails() {
         </div>
       </div>
 
-      {/* Fixed Button at Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#FCFDF5] p-6 border-t-2 border-[#111909]">
+        {/* Fixed Button at Bottom */}
+        <div className="flex-shrink-0 bg-[#FCFDF5] p-6 border-t-2 border-[#111909]">
         <Button
           onClick={() => setIsDrawerOpen(true)}
           className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-medium py-6 text-lg rounded-full border-2 border-[#111909]"
@@ -425,8 +460,8 @@ export default function OptionDetails() {
         </Button>
       </div>
 
-      {/* Place Bet Drawer */}
-      <Drawer
+        {/* Place Bet Drawer */}
+        <Drawer
         open={isDrawerOpen}
         onOpenChange={(open) => {
           setIsDrawerOpen(open);
@@ -574,6 +609,7 @@ export default function OptionDetails() {
           )}
         </DrawerContent>
       </Drawer>
+      </div>
     </main>
   );
 }

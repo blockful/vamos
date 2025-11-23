@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { useToast } from "@/hooks/use-toast";
+import { useOutcome } from "@/hooks/use-markets";
 import {
   Drawer,
   DrawerClose,
@@ -33,6 +34,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
 import { usePauseMarket, useResolveMarket } from "@/hooks/use-vamos-contract";
 import { formatTimeAgo } from "@/app/helpers/formatTimeAgo";
+import { useTokenDecimals } from "@/hooks/use-token-decimals";
 
 export default function MarketDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -42,8 +44,14 @@ export default function MarketDetails() {
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
   const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
-  const marketId = parseInt(params.id as string);
-  const { address } = useAccount();
+
+  // params.id is the composite ID in format "chainId-marketId" (e.g., "8453-0")
+  const compositeMarketId = params.id as string;
+
+  // Extract the numeric marketId for contract calls
+  const marketId = parseInt(compositeMarketId.split("-")[1] || "0");
+
+  const { address, chain } = useAccount();
   const { toast } = useToast();
 
   // Fetch market data from API
@@ -72,7 +80,12 @@ export default function MarketDetails() {
     error: resolveError,
   } = useResolveMarket();
 
-  const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
+  // Get token decimals for the current chain
+  const { decimals } = useTokenDecimals(chain?.id);
+
+  const market = apiMarket
+    ? transformMarketForDetailsUI(apiMarket, decimals ?? 18)
+    : null;
 
   // Color palette for multiple options
   const getOptionColor = (index: number) => {
@@ -190,10 +203,10 @@ export default function MarketDetails() {
   if (!isMiniAppReady || isLoading) {
     return (
       <main className="flex-1">
-        <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <section className="flex items-center justify-center min-h-screen bg-[#111909]">
           <div className="w-full max-w-md mx-auto p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FEABEF] mx-auto mb-4"></div>
+            <p className="text-[#FCFDF5]">
               {!isMiniAppReady ? "Loading..." : "Loading market..."}
             </p>
           </div>
@@ -204,11 +217,11 @@ export default function MarketDetails() {
 
   if (error) {
     return (
-      <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <main className="flex-1 min-h-screen bg-[#111909]">
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="text-center">
-            <p className="text-red-600 mb-4">Error loading market</p>
-            <p className="text-gray-600 mb-4">{error.message}</p>
+            <p className="text-red-400 mb-4">Error loading market</p>
+            <p className="text-[#FCFDF5] mb-4">{error.message}</p>
             <Button onClick={() => router.back()}>Go Back</Button>
           </div>
         </div>
@@ -218,9 +231,9 @@ export default function MarketDetails() {
 
   if (!market) {
     return (
-      <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <main className="flex-1 min-h-screen bg-[#111909]">
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <p className="text-center text-gray-600">Market not found</p>
+          <p className="text-center text-[#FCFDF5]">Market not found</p>
         </div>
       </main>
     );
@@ -229,7 +242,7 @@ export default function MarketDetails() {
   return (
     <main className="flex-1 min-h-screen bg-[#111909]">
       <section
-        className="px-2 pb-2 space-y-2"
+        className="pb-2 space-y-2"
         style={{
           animation: isExiting
             ? "slide-down 0.3s ease-in forwards"
@@ -283,8 +296,17 @@ export default function MarketDetails() {
             <h1 className="text-2xl font-semibold text-black mb-2">
               {market.title.replace("Match: ", "Tennis Match: ")}
             </h1>
+          </div>
 
-            {/* Market metadata */}
+          {/* Volume */}
+          <div>
+            <p className="text-sm text-black">
+              Volume: ${formatCurrency(market.totalVolume)}
+            </p>
+          </div>
+
+          {/* Market metadata */}
+          <div>
             <div className="flex flex-wrap gap-2 text-xs text-gray-600">
               {apiMarket?.createdAt && (
                 <span className="flex items-center">
@@ -306,25 +328,8 @@ export default function MarketDetails() {
             </div>
           </div>
 
-          {/* Judge and Volume */}
+          {/* Winner Display Container */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-gray-300 flex-shrink-0" />
-              <span className="text-sm text-black">
-                Judge:{" "}
-                {judgeAddress
-                  ? formatAddressOrEns(judgeAddress, judgeEnsName, true)
-                  : market.judge}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-black">
-                <DollarSign />
-              </span>
-              <span className="text-sm text-black">
-                Volume: ${formatCurrency(market.totalVolume)}
-              </span>
-            </div>
             {/* Winner Display - Only show if market is RESOLVED */}
             {market.status === "RESOLVED" &&
               market.winningOutcome !== undefined && (
@@ -504,7 +509,9 @@ export default function MarketDetails() {
               <button
                 key={index}
                 disabled={market.status !== "OPEN"}
-                onClick={() => router.push(`/markets/${marketId}/${index}`)}
+                onClick={() =>
+                  router.push(`/markets/${compositeMarketId}/${index}`)
+                }
                 className={`w-full rounded-2xl overflow-hidden relative h-auto transition-all hover:shadow-lg active:scale-95 bg-white`}
               >
                 {/* Colored background bar based on percentage */}
@@ -661,17 +668,16 @@ export default function MarketDetails() {
                   key={index}
                   onClick={() => setSelectedWinner(index)}
                   disabled={isResolvePending || isResolveConfirming}
-                  style={{ boxShadow: "2px 2px 0px #111909" }}
-                  className={`w-full text-black font-medium rounded-full 
-           ${
-             selectedWinner === index
-               ? index === 0
-                 ? "bg-[#A4D18E] border-2 border-black"
-                 : "bg-[#fbbf24] border-2 border-black"
-               : index === 0
-               ? "bg-[#A4D18E] bg-opacity-50"
-               : "bg-[#fbbf24] bg-opacity-50"
-           } disabled:opacity-50`}
+                  style={{
+                    boxShadow: "2px 2px 0px #111909",
+                    backgroundColor:
+                      selectedWinner === index
+                        ? getColorForOption(option.name)
+                        : `${getColorForOption(option.name)}80`, // 80 = 50% opacity in hex
+                  }}
+                  className={`w-full text-black font-medium rounded-full hover:opacity-80 transition-opacity ${
+                    selectedWinner === index ? "border-2 border-black" : ""
+                  } disabled:opacity-50`}
                 >
                   {option.name}
                 </Button>
