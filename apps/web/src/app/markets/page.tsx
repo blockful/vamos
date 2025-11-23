@@ -19,6 +19,8 @@ import { useAccount } from "wagmi";
 import { isAddress } from "viem";
 import { useMarkets, transformMarketForUI } from "@/hooks/use-markets";
 import { formatCurrency } from "@/lib/utils";
+import { useEnsAddress } from "@/hooks/use-ens";
+import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
 
 export default function Markets() {
   const { isMiniAppReady } = useMiniApp();
@@ -26,6 +28,7 @@ export default function Markets() {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState<string>("");
+  const [judgeInput, setJudgeInput] = useState<string>("");
 
   // Fetch markets from API
   const {
@@ -44,8 +47,25 @@ export default function Markets() {
     hash,
   } = useCreateMarket();
 
+  // Resolve ENS name to address if judge input contains .eth or similar
+  const { data: resolvedJudgeAddress } = useEnsAddress(
+    judgeInput && judgeInput.includes(".") ? judgeInput : undefined
+  );
+
   // Transform API markets to UI format
   const markets = apiMarkets?.map(transformMarketForUI) || [];
+
+  // Collect all unique addresses for ENS resolution
+  const addresses = Array.from(
+    new Set(
+      markets.flatMap((m) =>
+        [m.creator, m.judge].filter((addr): addr is string => !!addr)
+      )
+    )
+  );
+
+  // Resolve ENS names for all addresses
+  const { data: ensNames } = useEnsNames(addresses);
 
   // Update markets list and close modal when transaction is confirmed
   useEffect(() => {
@@ -69,14 +89,28 @@ export default function Markets() {
         setFormError("");
 
         // Determine judge address
-        const judgeAddress =
-          values.judge ||
-          address ||
-          "0x0000000000000000000000000000000000000000";
+        let judgeAddress = values.judge;
+
+        // If judge input contains a dot (ENS name), use resolved address
+        if (values.judge && values.judge.includes(".")) {
+          if (!resolvedJudgeAddress) {
+            setFormError(
+              "Unable to resolve ENS name. Please check the name or use an address."
+            );
+            return;
+          }
+          judgeAddress = resolvedJudgeAddress;
+        }
+
+        // Use user's address if no judge provided
+        if (!judgeAddress) {
+          judgeAddress =
+            address || "0x0000000000000000000000000000000000000000";
+        }
 
         // Validate if it's a valid address
         if (!isAddress(judgeAddress)) {
-          setFormError("Invalid judge address");
+          setFormError("Invalid judge address or ENS name");
           return;
         }
 
@@ -211,6 +245,33 @@ export default function Markets() {
                   <p className="text-sm text-gray-600">
                     Volume: ${formatCurrency(market.volume)}
                   </p>
+                  <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-500">
+                    {market.timeAgo && (
+                      <span className="flex items-center">
+                        ⏱️ {market.timeAgo}
+                      </span>
+                    )}
+                    {market.creator && (
+                      <span className="flex items-center">
+                        👤 Creator:{" "}
+                        {formatAddressOrEns(
+                          market.creator,
+                          ensNames?.[market.creator],
+                          true
+                        )}
+                      </span>
+                    )}
+                    {market.judge && (
+                      <span className="flex items-center">
+                        ⚖️ Judge:{" "}
+                        {formatAddressOrEns(
+                          market.judge,
+                          ensNames?.[market.judge],
+                          true
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Options - Bar Chart Style */}
@@ -263,6 +324,7 @@ export default function Markets() {
             // Reset form when modal is closed
             formik.resetForm();
             setFormError("");
+            setJudgeInput("");
           }
         }}
       >
@@ -274,6 +336,15 @@ export default function Markets() {
           </DialogHeader>
 
           <form onSubmit={formik.handleSubmit} className="space-y-6">
+            {/* Fee Disclaimer */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-gray-800 font-medium">
+                💡 <strong>Fee Structure:</strong> 5% of the total pot is
+                collected as fee and split between the market creator (you) and
+                the protocol.
+              </p>
+            </div>
+
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="title" className="text-sm font-medium text-black">
@@ -284,7 +355,7 @@ export default function Markets() {
                 name="title"
                 value={formik.values.title}
                 onChange={formik.handleChange}
-                className="w-full border-2 border-[#111909] rounded-lg"
+                className="w-full border-2 border-[#111909] rounded-lg text-black placeholder:text-gray-500"
               />
             </div>
 
@@ -301,35 +372,60 @@ export default function Markets() {
                 name="description"
                 value={formik.values.description}
                 onChange={formik.handleChange}
-                className="w-full min-h-[80px] border-2 border-[#111909] rounded-lg"
+                className="w-full min-h-[80px] border-2 border-[#111909] rounded-lg text-black placeholder:text-gray-500"
               />
             </div>
 
             {/* Judge */}
             <div className="space-y-2">
-              <Label htmlFor="judge" className="text-sm font-medium text-black">
-                Judge
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="judge"
+                  className="text-sm font-medium text-black"
+                >
+                  Judge
+                </Label>
+                {judgeInput &&
+                  judgeInput.includes(".") &&
+                  resolvedJudgeAddress && (
+                    <p className="text-xs text-green-600">
+                      ✓ Resolved to: {resolvedJudgeAddress.slice(0, 6)}...
+                      {resolvedJudgeAddress.slice(-4)}
+                    </p>
+                  )}
+                {judgeInput &&
+                  judgeInput.includes(".") &&
+                  !resolvedJudgeAddress && (
+                    <p className="text-xs text-gray-500">
+                      🔍 Resolving ENS name...
+                    </p>
+                  )}
+              </div>
               <Input
                 id="judge"
                 name="judge"
-                placeholder="Enter judge name or address"
+                placeholder="Enter judge ENS name or address"
                 value={formik.values.judge}
-                onChange={formik.handleChange}
-                className="w-full border-2 border-[#111909] rounded-lg"
+                onChange={(e) => {
+                  formik.handleChange(e);
+                  setJudgeInput(e.target.value);
+                }}
+                className="w-full border-2 border-[#111909] rounded-lg text-black placeholder:text-gray-500"
               />
             </div>
 
             {/* Options - Dynamic */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Options</Label>
+                <Label className="text-sm font-medium text-black">
+                  Options
+                </Label>
                 <Button
                   type="button"
                   onClick={addOption}
                   size="sm"
                   variant="outline"
-                  className="text-xs"
+                  className="text-xs text-black border-[#111909]"
                 >
                   <Plus className="h-3 w-3 mr-1" />
                   Add Option
@@ -346,7 +442,7 @@ export default function Markets() {
                       newOptions[index] = e.target.value;
                       formik.setFieldValue("options", newOptions);
                     }}
-                    className="flex-1"
+                    className="flex-1 text-black placeholder:text-gray-500"
                   />
                   {formik.values.options.length > 2 && (
                     <Button
