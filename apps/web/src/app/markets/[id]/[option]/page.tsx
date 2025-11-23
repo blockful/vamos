@@ -245,7 +245,13 @@ export default function OptionDetails() {
   };
 
   const handleShare = () => {
-    // TODO: Implement share logic
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      toast({
+        title: "Link Copied! 🔗",
+        description: "Market link copied to clipboard",
+      });
+    });
   };
 
   if (!isMiniAppReady || isLoadingOutcome) {

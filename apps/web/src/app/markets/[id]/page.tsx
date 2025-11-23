@@ -380,6 +380,15 @@ export default function MarketDetails() {
             </Button>
           )}
           <Button
+            onClick={() => {
+              const url = window.location.href;
+              navigator.clipboard.writeText(url).then(() => {
+                toast({
+                  title: "Link Copied! 🔗",
+                  description: "Market link copied to clipboard",
+                });
+              });
+            }}
             className="gap-2 bg-gray-200 hover:bg-gray-300 w-full text-black font-medium rounded-full border-2 border-[#111909]"
             style={{ boxShadow: "2px 2px 0px #111909" }}
           >
