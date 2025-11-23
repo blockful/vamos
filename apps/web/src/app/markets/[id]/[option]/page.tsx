@@ -15,15 +15,6 @@ import {
   useTokenApproval,
 } from "@/hooks/use-vamos-contract";
 import { useOutcome, transformOutcomeForUI } from "@/hooks/use-markets";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { parseUnits } from "viem";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
 import { useToast } from "@/hooks/use-toast";
@@ -202,8 +193,7 @@ export default function OptionDetails() {
     try {
       setIsProcessing(true);
 
-      // Convert bet amount to token units (assuming 18 decimals for ERC20)
-      const amountInWei = parseUnits(betAmount.toString(), 18);
+      const amountInWei = parseUnits(betAmount.toString(), 6);
 
       // If we're in approval flow, wait for it to complete
       if (needsApproval && (isApprovePending || isApproveConfirming)) {
@@ -443,7 +433,9 @@ export default function OptionDetails() {
           {!showConfirmation ? (
             <>
               <DrawerHeader className="border-b-2 border-[#111909] text-center">
-                <DrawerTitle className="text-black text-center">Place bet</DrawerTitle>
+                <DrawerTitle className="text-black text-center">
+                  Place bet
+                </DrawerTitle>
                 <p className="text-2xl font-bold text-black mt-2 text-center">
                   {option.name}
                 </p>
