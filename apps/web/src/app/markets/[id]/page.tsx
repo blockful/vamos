@@ -68,6 +68,19 @@ export default function MarketDetails() {
 
   const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
 
+  // Color palette for multiple options
+  const getOptionColor = (index: number) => {
+    const colors = [
+      "#A4D18E", // green
+      "#fbbf24", // yellow
+      "#FEABEF", // pink
+      "#A78BFA", // purple
+      "#60A5FA", // blue
+      "#F87171", // red
+    ];
+    return colors[index % colors.length];
+  };
+
   // Get ENS name for judge if market judge is an address
   const judgeAddress =
     market?.judge && market.judge.startsWith("0x") ? market.judge : undefined;
@@ -79,34 +92,6 @@ export default function MarketDetails() {
       ? apiMarket.creator
       : undefined;
   const { data: creatorEnsName } = useEnsName(creatorAddress);
-
-  // Get the latest percentages from chart data
-  const getLatestPercentages = () => {
-    if (market && market.chartData.length > 0) {
-      const latest = market.chartData[market.chartData.length - 1];
-      return {
-        option1: latest.option1,
-        option2: latest.option2,
-      };
-    }
-    return { option1: 50, option2: 50 };
-  };
-
-  const latestPercentages = getLatestPercentages();
-
-  // Calculate total amounts based on percentages
-  const getTotalAmounts = () => {
-    if (market) {
-      const total = market.totalVolume;
-      return {
-        option1: Math.round((total * latestPercentages.option1) / 100),
-        option2: Math.round((total * latestPercentages.option2) / 100),
-      };
-    }
-    return { option1: 50, option2: 50 };
-  };
-
-  const totalAmounts = getTotalAmounts();
 
   const handleBack = () => {
     setIsExiting(true);
@@ -490,12 +475,9 @@ export default function MarketDetails() {
         {/* Betting Options */}
         <div className="space-y-2">
           {market.options.map((option, index) => {
-            const percentage =
-              index === 0
-                ? latestPercentages.option1
-                : latestPercentages.option2;
-            const totalAmount =
-              index === 0 ? totalAmounts.option1 : totalAmounts.option2;
+            // Use the actual data from the option object
+            const percentage = option.percentage || 0;
+            const totalAmount = option.totalAmount || 0;
             const userBet = option.userBet || 0;
 
             const isWinner =
@@ -514,11 +496,9 @@ export default function MarketDetails() {
                 <div
                   className="absolute inset-0"
                   style={{
-                    background: `linear-gradient(to right, ${
-                      index === 0 ? "#A4D18E" : "#E3DAA2"
-                    } 0%, ${
-                      index === 0 ? "#A4D18E" : "#E3DAA2"
-                    } 40%, white 40%, white 100%)`,
+                    background: `linear-gradient(to right, ${getOptionColor(
+                      index
+                    )} 0%, ${getOptionColor(index)} ${percentage}%, white ${percentage}%, white 100%)`,
                   }}
                 />
 
