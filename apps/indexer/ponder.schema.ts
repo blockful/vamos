@@ -2,7 +2,9 @@ import { onchainTable, relations } from "ponder";
 import { MarketStatus } from "./src/constants";
 
 export const markets = onchainTable("markets", (t) => ({
-  id: t.text().primaryKey(), // marketId as string
+  id: t.text().primaryKey(), // Composite: `${chainId}-${marketId}`
+  marketId: t.text().notNull(), // Original marketId from contract
+  chainId: t.integer().notNull(), // Chain ID (42220 for Celo, 8453 for Base)
   creator: t.hex().notNull(),
   judge: t.hex().notNull(),
   question: t.text().notNull(),
@@ -23,8 +25,9 @@ export const marketsRelations = relations(markets, ({ many }) => ({
 }));
 
 export const outcomes = onchainTable("outcomes", (t) => ({
-  id: t.text().primaryKey(), // Composite: `${marketId}-${outcomeIndex}`
+  id: t.text().primaryKey(), // Composite: `${chainId}-${marketId}-${outcomeIndex}`
   marketId: t.text().notNull(), // Reference to markets.id
+  chainId: t.integer().notNull(), // Chain ID
   outcomeIndex: t.integer().notNull(), // Index of the outcome (0, 1, 2, etc.)
   description: t.text().notNull(), // Description of the outcome
   totalAmount: t.bigint().notNull().default(0n), // Total amount bet on this outcome
@@ -36,9 +39,10 @@ export const outcomesRelations = relations(outcomes, ({ one, many }) => ({
 }));
 
 export const bets = onchainTable("bets", (t) => ({
-  id: t.text().primaryKey(), // Composite: `${marketId}-${user}-${outcomeIndex}`
+  id: t.text().primaryKey(), // Composite: `${chainId}-${marketId}-${user}-${outcomeIndex}`
   marketId: t.text().notNull(), // Reference to markets.id
   outcomeId: t.text().notNull(), // Reference to outcomes.id
+  chainId: t.integer().notNull(), // Chain ID
   user: t.hex().notNull(),
   outcomeIndex: t.integer().notNull(), // Keep for convenience
   amount: t.bigint().notNull().default(0n), // Cumulative amount bet by this user on this outcome

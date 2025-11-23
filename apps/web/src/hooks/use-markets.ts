@@ -26,6 +26,8 @@ interface Outcome {
 
 interface Market {
     id: string;
+    marketId: string;
+    chainId: number;
     question: string;
     status: string;
     totalPool: string;
@@ -53,17 +55,19 @@ interface MarketsResponse {
 }
 
 
-// GraphQL query
+// GraphQL query with chainId filter
 const MARKETS_QUERY = `
-  query Markets {
-  marketss(orderBy: "createdAt", orderDirection: "desc") {
+  query Markets($chainId: Int!) {
+  marketss(where: { chainId: $chainId }, orderBy: "createdAt", orderDirection: "desc") {
     items {
+      id
+      marketId
+      chainId
       winningOutcome
       question
       status
       totalPool
       createdAt
-      id
       creator
       judge
       outcomes {
@@ -155,11 +159,16 @@ export const getColorForOption = (optionName: string): string => {
 
 /**
  * Hook to fetch markets from the indexer API
+ * @param chainId - The chain ID to filter markets by
  */
-export function useMarkets() {
+export function useMarkets(chainId?: number) {
     return useQuery({
-        queryKey: ["markets"],
+        queryKey: ["markets", chainId],
         queryFn: async (): Promise<Market[]> => {
+            if (!chainId) {
+                return [];
+            }
+
             const response = await fetch(API_URL, {
                 method: "POST",
                 headers: {
@@ -167,6 +176,7 @@ export function useMarkets() {
                 },
                 body: JSON.stringify({
                     query: MARKETS_QUERY,
+                    variables: { chainId },
                 }),
             });
 
@@ -179,12 +189,13 @@ export function useMarkets() {
         },
         refetchInterval: 10000, // Refetch every 10 seconds
         staleTime: 5000, // Consider data fresh for 5 seconds
+        enabled: !!chainId, // Only run if chainId is provided
     });
 }
 
 /**
  * Hook to fetch a specific market by ID
- * @param marketId - The ID of the market to fetch
+ * @param marketId - The composite ID of the market (chainId-marketId)
  * @param userAddress - Optional user address to filter bets for "Your bet" display
  */
 export function useMarket(marketId: string, userAddress?: string) {
@@ -195,6 +206,8 @@ export function useMarket(marketId: string, userAddress?: string) {
                 query Market($id: String!, $userAddress: String) {
                     markets(id: $id) {
                         id
+                        marketId
+                        chainId
                         winningOutcome
                         judge
                         status
@@ -309,15 +322,17 @@ export function useOutcome(outcomeId: string) {
 
 /**
  * Helper function to calculate user's bet amount for a specific outcome
+ * @param outcome - The outcome to calculate the user's bet for
+ * @param decimals - The number of decimals for the token (e.g., 6 for USDC, 18 for most tokens)
  */
-export function calculateUserBetForOutcome(outcome: Outcome): number {
+export function calculateUserBetForOutcome(outcome: Outcome, decimals: number = 18): number {
     if (!outcome.bets?.items || outcome.bets.items.length === 0) {
         return 0;
     }
 
     // Sum all bets from the user (should typically be just one per outcome)
     const totalUserBet = outcome.bets.items.reduce((sum, bet) => {
-        return sum + parseFloat(formatUnits(BigInt(bet.amount), 18));
+        return sum + parseFloat(formatUnits(BigInt(bet.amount), decimals));
     }, 0);
 
     return totalUserBet;
@@ -325,15 +340,17 @@ export function calculateUserBetForOutcome(outcome: Outcome): number {
 
 /**
  * Helper function to transform API market to UI format
+ * @param market - The market to transform
+ * @param decimals - The number of decimals for the token (e.g., 6 for USDC, 18 for most tokens)
  */
-export function transformMarketForUI(market: Market) {
-    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), 18));
+export function transformMarketForUI(market: Market, decimals: number = 18) {
+    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), decimals));
 
     // Calculate percentages for each outcome
     const options = market.outcomes.items.map((outcome) => {
-        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
+        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), decimals));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
-        const userBet = calculateUserBetForOutcome(outcome);
+        const userBet = calculateUserBetForOutcome(outcome, decimals);
 
         return {
             id: outcome.outcomeIndex,
@@ -366,15 +383,17 @@ export function transformMarketForUI(market: Market) {
 
 /**
  * Helper function to transform API market to detailed UI format for market details page
+ * @param market - The market to transform
+ * @param decimals - The number of decimals for the token (e.g., 6 for USDC, 18 for most tokens)
  */
-export function transformMarketForDetailsUI(market: Market) {
-    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), 18));
+export function transformMarketForDetailsUI(market: Market, decimals: number = 18) {
+    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), decimals));
 
     // Calculate percentages for each outcome
     const options = market.outcomes.items.map((outcome) => {
-        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
+        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), decimals));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
-        const userBet = calculateUserBetForOutcome(outcome);
+        const userBet = calculateUserBetForOutcome(outcome, decimals);
 
         return {
             name: outcome.description,
@@ -410,14 +429,16 @@ export function transformMarketForDetailsUI(market: Market) {
 
 /**
  * Helper function to transform API outcome to UI format for option details page
+ * @param outcome - The outcome to transform
+ * @param decimals - The number of decimals for the token (e.g., 6 for USDC, 18 for most tokens)
  */
-export function transformOutcomeForUI(outcome: Outcome) {
-    const totalAmount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
+export function transformOutcomeForUI(outcome: Outcome, decimals: number = 18) {
+    const totalAmount = parseFloat(formatUnits(BigInt(outcome.totalAmount), decimals));
 
     // Transform bets for UI - keep full address for ENS resolution
     const bets = outcome.bets?.items.map((bet) => ({
         address: bet.user, // Keep full address for ENS resolution
-        amount: parseFloat(formatUnits(BigInt(bet.amount), 18)),
+        amount: parseFloat(formatUnits(BigInt(bet.amount), decimals)),
         timestamp: bet.lastUpdated * 1000, // Convert to milliseconds
         avatar: null, // Avatar is not available from API, will fallback to /avatar.png
     })) || [];

@@ -33,6 +33,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
 import { usePauseMarket, useResolveMarket } from "@/hooks/use-vamos-contract";
 import { formatTimeAgo } from "@/app/helpers/formatTimeAgo";
+import { useTokenDecimals } from "@/hooks/use-token-decimals";
 
 export default function MarketDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -42,8 +43,14 @@ export default function MarketDetails() {
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
   const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
-  const marketId = parseInt(params.id as string);
-  const { address } = useAccount();
+
+  // params.id is the composite ID in format "chainId-marketId" (e.g., "8453-0")
+  const compositeMarketId = params.id as string;
+
+  // Extract the numeric marketId for contract calls
+  const marketId = parseInt(compositeMarketId.split("-")[1] || "0");
+
+  const { address, chain } = useAccount();
   const { toast } = useToast();
 
   // Fetch market data from API
@@ -72,7 +79,12 @@ export default function MarketDetails() {
     error: resolveError,
   } = useResolveMarket();
 
-  const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
+  // Get token decimals for the current chain
+  const { decimals } = useTokenDecimals(chain?.id);
+
+  const market = apiMarket
+    ? transformMarketForDetailsUI(apiMarket, decimals ?? 18)
+    : null;
 
   // Color palette for multiple options
   const getOptionColor = (index: number) => {
@@ -504,7 +516,9 @@ export default function MarketDetails() {
               <button
                 key={index}
                 disabled={market.status !== "OPEN"}
-                onClick={() => router.push(`/markets/${marketId}/${index}`)}
+                onClick={() =>
+                  router.push(`/markets/${compositeMarketId}/${index}`)
+                }
                 className={`w-full rounded-2xl overflow-hidden relative h-auto transition-all hover:shadow-lg active:scale-95 bg-white`}
               >
                 {/* Colored background bar based on percentage */}

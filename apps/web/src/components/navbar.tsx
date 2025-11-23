@@ -5,7 +5,6 @@ import {
   useAccount,
   useDisconnect,
   useReadContract,
-  useSwitchChain,
 } from "wagmi";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -13,23 +12,18 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useEffect, useState, useRef } from "react";
 import { ERC20Abi } from "@/abis/erc20Abi";
 import { formatUnits } from "viem";
-import { Address } from "viem";
 import { Button } from "@/components/ui/button";
 import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
 import { useWalletConnect } from "@/hooks/use-wallet-connect";
-import { celo } from "viem/chains";
-
-const VAMOS_TOKEN_ADDRESS = process.env
-  .NEXT_PUBLIC_VAMOS_TOKEN_ADDRESS as Address;
+import { NetworkSwitcher } from "@/components/network-switcher";
+import { getTokenAddress } from "@/lib/contracts";
 
 export function Navbar() {
   const router = useRouter();
   const { disconnect } = useDisconnect();
   const { context } = useMiniApp();
   const [isOpen, setIsOpen] = useState(false);
-
   const { chain } = useAccount();
-  const { switchChainAsync } = useSwitchChain();
 
   // Use wallet connect hook
   const {
@@ -46,38 +40,30 @@ export function Navbar() {
     getConnectorIcon,
   } = useWalletConnect();
 
-  // Force Celo network when connected
-  useEffect(() => {
-    if (!isConnected) return;
-
-    // If user is on a different network, switch back to Celo
-    if (chain?.id !== celo.id) {
-      switchChainAsync({ chainId: celo.id }).catch((error) => {
-        console.error("Failed to switch to Celo:", error);
-        // If user rejects, disconnect them
-        disconnect();
-      });
-    }
-  }, [chain, isConnected, switchChainAsync, disconnect]);
-
   const { data: ensName } = useEnsName(address);
+
+  // Get token address for current chain
+  const tokenAddress = getTokenAddress(chain?.id);
 
   // Get VAMOS token balance
   const { data: tokenBalance, isLoading: isLoadingBalance } = useReadContract({
-    address: VAMOS_TOKEN_ADDRESS,
+    address: tokenAddress ?? undefined,
     abi: ERC20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
     query: {
-      enabled: !!address,
+      enabled: !!address && !!tokenAddress,
     },
   });
 
   // Get token decimals
   const { data: tokenDecimals } = useReadContract({
-    address: VAMOS_TOKEN_ADDRESS,
+    address: tokenAddress ?? undefined,
     abi: ERC20Abi,
     functionName: "decimals",
+    query: {
+      enabled: !!tokenAddress,
+    },
   });
 
   // Format the token balance
@@ -188,9 +174,14 @@ export function Navbar() {
           />
         </button>
 
-        {/* Right side - Connect Wallet or Avatar and Balance */}
-        {!isConnected ? (
-          <div className="flex items-center gap-3">
+        {/* Right side - Network Switcher and Connect Wallet or Avatar and Balance */}
+        <div className="flex items-center gap-3">
+          {/* Network Switcher - Always visible when connected */}
+          {isConnected && <NetworkSwitcher />}
+
+          {/* Connect Wallet or User Info */}
+          {!isConnected ? (
+            <>
             {!showWalletOptions ? (
               <Button
                 onClick={handleConnectWallet}
@@ -248,9 +239,9 @@ export function Navbar() {
                 </div>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="flex flex-row items-center gap-3 relative">
+            </>
+          ) : (
+            <>
             {/* Avatar with Dropdown */}
             <div ref={dropdownRef} className="relative">
               <button
@@ -309,8 +300,9 @@ export function Navbar() {
                   : `${formatBalance(formattedBalance)} USDC`}
               </span>
             </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </header>
   );
