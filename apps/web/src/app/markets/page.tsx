@@ -18,6 +18,7 @@ import { useCreateMarket } from "@/hooks/use-vamos-contract";
 import { useAccount } from "wagmi";
 import { isAddress } from "viem";
 import { useMarkets, transformMarketForUI } from "@/hooks/use-markets";
+import { formatCurrency } from "@/lib/utils";
 
 export default function Markets() {
   const { isMiniAppReady } = useMiniApp();
@@ -208,7 +209,7 @@ export default function Markets() {
                     {market.title}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Volume: {market.volume}
+                    Volume: ${formatCurrency(market.volume)}
                   </p>
                 </div>
 

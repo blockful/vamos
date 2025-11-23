@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { formatUnits } from "viem";
 
 // Types for the GraphQL response
 interface Bet {
@@ -225,11 +226,11 @@ export function useOutcome(outcomeId: string) {
  * Helper function to transform API market to UI format
  */
 export function transformMarketForUI(market: Market) {
-    const totalPool = parseFloat(market.totalPool);
+    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), 18));
 
     // Calculate percentages for each outcome
     const options = market.outcomes.items.map((outcome) => {
-        const amount = parseFloat(outcome.totalAmount);
+        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
 
         return {
@@ -268,11 +269,11 @@ export function transformMarketForUI(market: Market) {
  * Helper function to transform API market to detailed UI format for market details page
  */
 export function transformMarketForDetailsUI(market: Market) {
-    const totalPool = parseFloat(market.totalPool);
+    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), 18));
 
     // Calculate percentages for each outcome
     const options = market.outcomes.items.map((outcome) => {
-        const amount = parseFloat(outcome.totalAmount);
+        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
 
         return {
@@ -311,13 +312,12 @@ export function transformMarketForDetailsUI(market: Market) {
  * Helper function to transform API outcome to UI format for option details page
  */
 export function transformOutcomeForUI(outcome: Outcome) {
-    const totalAmount = parseFloat(outcome.totalAmount);
+    const totalAmount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
 
-    // Transform bets for UI
+    // Transform bets for UI - keep full address for ENS resolution
     const bets = outcome.bets?.items.map((bet) => ({
-        user: `User ${bet.user.slice(0, 6)}...${bet.user.slice(-4)}`,
-        address: `${bet.user.slice(0, 6)}...${bet.user.slice(-4)}`,
-        amount: parseFloat(bet.amount),
+        address: bet.user, // Keep full address for ENS resolution
+        amount: parseFloat(formatUnits(BigInt(bet.amount), 18)),
         timestamp: bet.lastUpdated * 1000, // Convert to milliseconds
     })) || [];
 

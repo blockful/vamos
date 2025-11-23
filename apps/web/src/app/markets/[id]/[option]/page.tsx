@@ -13,10 +13,12 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { usePlacePrediction, useTokenApproval } from "@/hooks/use-vamos-contract";
 import { useMarket, transformOutcomeForUI } from "@/hooks/use-markets";
 import { parseUnits } from "viem";
+import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
+import { formatCurrency } from "@/lib/utils";
 
 export default function OptionDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -52,6 +54,14 @@ export default function OptionDetails() {
   // Get the specific outcome from the market data
   const outcomeData = marketData?.outcomes.items[optionIndex];
   const option = outcomeData ? transformOutcomeForUI(outcomeData) : null;
+
+  // Get all unique addresses from bets for ENS resolution
+  const betAddresses = useMemo(() => {
+    return option?.bets.map((bet) => bet.address) || [];
+  }, [option?.bets]);
+
+  // Fetch ENS names for all bet addresses
+  const { data: ensNames } = useEnsNames(betAddresses);
 
   useEffect(() => {
     if (isConfirmed) {
@@ -222,7 +232,7 @@ export default function OptionDetails() {
                   {option.name}
                 </h1>
                 <p className="text-2xl font-semibold text-gray-700">
-                  ${option.totalAmount}
+                  ${formatCurrency(option.totalAmount)}
                 </p>
               </div>
             </div>
@@ -291,32 +301,44 @@ export default function OptionDetails() {
           <div>
             <h2 className="text-lg font-bold text-gray-900 mb-4">Bets</h2>
             <div className="space-y-3">
-              {option.bets.map((bet, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                >
-                  {/* Avatar */}
-                  <div className="w-12 h-12 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center">
-                    <span className="text-sm font-bold text-gray-600">
-                      {bet.user.charAt(0)}
-                    </span>
-                  </div>
+              {option.bets.map((bet, index) => {
+                const displayName = formatAddressOrEns(
+                  bet.address,
+                  ensNames?.[bet.address],
+                  true
+                );
+                const avatarLetter = ensNames?.[bet.address]
+                  ? ensNames[bet.address]!.charAt(0).toUpperCase()
+                  : bet.address.charAt(2).toUpperCase();
 
-                  {/* User Info */}
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900">{bet.user}</p>
-                    <p className="text-xs text-gray-500">{bet.address}</p>
-                  </div>
+                return (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  >
+                    {/* Avatar */}
+                    <div className="w-12 h-12 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center">
+                      <span className="text-sm font-bold text-gray-600">
+                        {avatarLetter}
+                      </span>
+                    </div>
 
-                  {/* Bet Amount */}
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-gray-900">
-                      ${bet.amount}
-                    </p>
+                    {/* User Info */}
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900">
+                        {displayName}
+                      </p>
+                    </div>
+
+                    {/* Bet Amount */}
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-gray-900">
+                        ${formatCurrency(bet.amount)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
