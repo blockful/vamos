@@ -12,7 +12,7 @@ export function useEnsName(address: string | undefined) {
     queryKey: ["ens-name", address],
     queryFn: async () => {
       if (!address || !publicClient) return null;
-      
+
       try {
         const ensName = await publicClient.getEnsName({
           address: address as `0x${string}`,
@@ -39,9 +39,9 @@ export function useEnsNames(addresses: string[]) {
     queryKey: ["ens-names", addresses],
     queryFn: async () => {
       if (!addresses.length || !publicClient) return {};
-      
+
       const ensNames: Record<string, string | null> = {};
-      
+
       await Promise.all(
         addresses.map(async (address) => {
           try {
@@ -55,7 +55,7 @@ export function useEnsNames(addresses: string[]) {
           }
         })
       );
-      
+
       return ensNames;
     },
     enabled: addresses.length > 0 && !!publicClient,
@@ -74,7 +74,7 @@ export function useEnsAddress(ensName: string | undefined) {
     queryKey: ["ens-address", ensName],
     queryFn: async () => {
       if (!ensName || !publicClient) return null;
-      
+
       try {
         const normalizedName = normalize(ensName);
         const address = await publicClient.getEnsAddress({
@@ -97,7 +97,7 @@ export function useEnsAddress(ensName: string | undefined) {
  */
 export function formatAddressOrEns(
   address: string,
-  ensName: string | null | undefined,
+  ensName?: string | null | undefined,
   truncate = true
 ): string {
   if (ensName) return ensName;

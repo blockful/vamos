@@ -5,10 +5,12 @@ import { Share2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, RechartsPrimitive } from "@/components/ui/chart";
 import { useState } from "react";
+import { useAccount } from "wagmi";
 
 import { useMarket, transformMarketForDetailsUI } from "@/hooks/use-markets";
 import { formatCurrency } from "@/lib/utils";
 import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
+import { formatTimeAgo } from "@/app/helpers/formatTimeAgo";
 
 export default function MarketDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -16,15 +18,22 @@ export default function MarketDetails() {
   const router = useRouter();
   const [isExiting, setIsExiting] = useState(false);
   const marketId = parseInt(params.id as string);
+  const { address } = useAccount();
 
-  // Fetch market data from API
-  const { data: apiMarket, isLoading, error } = useMarket(marketId.toString());
+  // Fetch market data from API with user address for filtering user bets
+  const { data: apiMarket, isLoading, error } = useMarket(marketId.toString(), address);
 
   const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
 
   // Get ENS name for judge if market judge is an address
-  const judgeAddress = market?.judge && market.judge.startsWith("0x") ? market.judge : undefined;
+  const judgeAddress =
+    market?.judge && market.judge.startsWith("0x") ? market.judge : undefined;
   const { data: judgeEnsName } = useEnsName(judgeAddress);
+
+  // Get ENS name for creator if available
+  const creatorAddress =
+    apiMarket?.creator && apiMarket.creator.startsWith("0x") ? apiMarket.creator : undefined;
+  const { data: creatorEnsName } = useEnsName(creatorAddress);
 
   // Get the latest percentages from chart data
   const getLatestPercentages = () => {
@@ -151,23 +160,35 @@ export default function MarketDetails() {
             <h1 className="text-2xl font-semibold text-black mb-2">
               {market.title.replace("Match: ", "Tennis Match: ")}
             </h1>
-            <p className="text-sm text-gray-700">{market.description}</p>
+            
+            {/* Market metadata */}
+            <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+              {apiMarket?.createdAt && (
+                <span className="flex items-center">
+                  ⏱️ {formatTimeAgo(apiMarket.createdAt)}
+                </span>
+              )}
+              {creatorAddress && (
+                <span className="flex items-center">
+                  👤 Creator:{" "}
+                  {formatAddressOrEns(creatorAddress, creatorEnsName, true)}
+                </span>
+              )}
+              {judgeAddress && (
+                <span className="flex items-center">
+                  ⚖️ Judge:{" "}
+                  {formatAddressOrEns(judgeAddress, judgeEnsName, true)}
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Judge and Volume */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-gray-300 flex-shrink-0" />
-              <span className="text-sm text-black">
-                Judge: {judgeAddress ? formatAddressOrEns(judgeAddress, judgeEnsName, true) : market.judge}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-black">$</span>
-              <span className="text-sm text-black">
-                Volume: ${formatCurrency(market.totalVolume)}
-              </span>
-            </div>
+          {/* Volume */}
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold text-black">$</span>
+            <span className="text-sm text-black">
+              Volume: ${formatCurrency(market.totalVolume)}
+            </span>
           </div>
 
           {/* Share Button */}
@@ -178,11 +199,11 @@ export default function MarketDetails() {
         </div>
 
         {/* Predictions Chart */}
-        <div className="bg-[#FCFDF5] rounded-2xl p-5 space-y-4">
-          <h2 className="text-xl font-bold text-black">Predictions</h2>
+        {/* <div className="bg-[#FCFDF5] rounded-2xl p-5 space-y-4">
+          <h2 className="text-xl font-bold text-black">Predictions</h2> */}
 
-          {/* Legend */}
-          <div className="flex gap-6 items-center">
+        {/* Legend */}
+        {/* <div className="flex gap-6 items-center">
             <div className="flex items-center gap-2">
               <div
                 className="w-3 h-3 rounded-full"
@@ -198,10 +219,10 @@ export default function MarketDetails() {
                 {market.options[1].name}
               </span>
             </div>
-          </div>
+          </div> */}
 
-          {/* Chart */}
-          <ChartContainer
+        {/* Chart */}
+        {/* <ChartContainer
             config={{
               option1: {
                 label: market.options[0].name,
@@ -261,8 +282,8 @@ export default function MarketDetails() {
                 name={market.options[1].name}
               />
             </RechartsPrimitive.LineChart>
-          </ChartContainer>
-        </div>
+          </ChartContainer> */}
+        {/* </div> */}
 
         {/* Betting Options */}
         <div className="space-y-2">
@@ -273,6 +294,7 @@ export default function MarketDetails() {
                 : latestPercentages.option2;
             const totalAmount =
               index === 0 ? totalAmounts.option1 : totalAmounts.option2;
+            const userBet = option.userBet || 0;
 
             return (
               <button
@@ -319,7 +341,7 @@ export default function MarketDetails() {
                           Your bet
                         </p>
                         <p className="text-sm font-semibold text-black">
-                          $0.00
+                          ${formatCurrency(userBet)}
                         </p>
                       </div>
                     </div>

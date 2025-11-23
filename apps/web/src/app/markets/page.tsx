@@ -148,6 +148,11 @@ export default function Markets() {
     }
   };
 
+  // Sync judgeInput with formik values for ENS resolution
+  useEffect(() => {
+    setJudgeInput(formik.values.judge);
+  }, [formik.values.judge]);
+
   if (!isMiniAppReady || isLoadingMarkets) {
     return (
       <main className="flex-1">
