@@ -20,7 +20,7 @@ import { isAddress } from "viem";
 import { useMarkets, transformMarketForUI } from "@/hooks/use-markets";
 
 export default function Markets() {
-  const { isMiniAppReady, context } = useMiniApp();
+  const { isMiniAppReady } = useMiniApp();
   const { address } = useAccount();
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,9 +45,6 @@ export default function Markets() {
 
   // Transform API markets to UI format
   const markets = apiMarkets?.map(transformMarketForUI) || [];
-
-  // Extract user data from context
-  const user = context?.user;
 
   // Formik form
   const formik = useFormik({
@@ -87,9 +84,6 @@ export default function Markets() {
           judgeAddress, // judge (now a valid Address)
           validOptions // outcomes
         );
-
-        console.log("Market creation transaction submitted!");
-        console.log("Transaction hash:", hash);
 
         // Refetch markets after creating a new one
         await refetch();
