@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { normalize } from "viem/ens";
 import { usePublicClient } from "wagmi";
+import { mainnet } from "wagmi/chains";
 
 /**
  * Hook to resolve ENS name from an Ethereum address
+ * ENS resolution always uses Ethereum mainnet
  */
 export function useEnsName(address: string | undefined) {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: mainnet.id });
 
   return useQuery({
     queryKey: ["ens-name", address],
@@ -31,9 +33,10 @@ export function useEnsName(address: string | undefined) {
 
 /**
  * Hook to resolve multiple ENS names from multiple Ethereum addresses
+ * ENS resolution always uses Ethereum mainnet
  */
 export function useEnsNames(addresses: string[]) {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: mainnet.id });
 
   return useQuery({
     queryKey: ["ens-names", addresses],
@@ -66,9 +69,10 @@ export function useEnsNames(addresses: string[]) {
 
 /**
  * Hook to resolve Ethereum address from an ENS name
+ * ENS resolution always uses Ethereum mainnet
  */
 export function useEnsAddress(ensName: string | undefined) {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: mainnet.id });
 
   return useQuery({
     queryKey: ["ens-address", ensName],
