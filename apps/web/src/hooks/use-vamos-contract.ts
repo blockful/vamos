@@ -2,15 +2,13 @@ import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useAcc
 import { VamosAbi } from "@/abis/vamosAbi";
 import { ERC20Abi } from "@/abis/erc20Abi";
 import { Address } from "viem";
-
-// Vamos contract address
-const VAMOS_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VAMOS_CONTRACT_ADDRESS as Address;
-const VAMOS_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_VAMOS_TOKEN_ADDRESS as Address;
+import { getVamosAddress, getTokenAddress } from "@/lib/contracts";
 
 /**
  * Hook to create a new market
  */
 export function useCreateMarket() {
+    const { chain } = useAccount();
     const { data: hash, writeContract, isPending, error } = useWriteContract();
 
     const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -23,9 +21,13 @@ export function useCreateMarket() {
         judge: Address,
         outcomes: string[]
     ) => {
+        const vamosAddress = getVamosAddress(chain?.id);
+        if (!vamosAddress) {
+            throw new Error("Vamos contract address not configured for this network");
+        }
 
         return writeContract({
-            address: VAMOS_CONTRACT_ADDRESS,
+            address: vamosAddress,
             abi: VamosAbi,
             functionName: "createMarket",
             args: [question, judge, outcomes],
@@ -46,6 +48,7 @@ export function useCreateMarket() {
  * Hook to place a prediction on a market
  */
 export function usePlacePrediction() {
+    const { chain } = useAccount();
     const { data: hash, writeContract, isPending, error } = useWriteContract();
 
     const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -58,8 +61,13 @@ export function usePlacePrediction() {
         outcomeId: bigint,
         amount: bigint
     ) => {
+        const vamosAddress = getVamosAddress(chain?.id);
+        if (!vamosAddress) {
+            throw new Error("Vamos contract address not configured for this network");
+        }
+
         return writeContract({
-            address: VAMOS_CONTRACT_ADDRESS,
+            address: vamosAddress,
             abi: VamosAbi,
             functionName: "placePrediction",
             args: [marketId, outcomeId, amount],
@@ -80,6 +88,7 @@ export function usePlacePrediction() {
  * Hook to claim winnings from a resolved market
  */
 export function useClaimWinnings() {
+    const { chain } = useAccount();
     const { data: hash, writeContract, isPending, error } = useWriteContract();
 
     const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -88,8 +97,13 @@ export function useClaimWinnings() {
         });
 
     const claimWinnings = async (marketId: bigint) => {
+        const vamosAddress = getVamosAddress(chain?.id);
+        if (!vamosAddress) {
+            throw new Error("Vamos contract address not configured for this network");
+        }
+
         return writeContract({
-            address: VAMOS_CONTRACT_ADDRESS,
+            address: vamosAddress,
             abi: VamosAbi,
             functionName: "claimWinnings",
             args: [marketId],
@@ -110,6 +124,7 @@ export function useClaimWinnings() {
  * Hook to claim refund from a market with no winners
  */
 export function useClaimRefund() {
+    const { chain } = useAccount();
     const { data: hash, writeContract, isPending, error } = useWriteContract();
 
     const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -118,8 +133,13 @@ export function useClaimRefund() {
         });
 
     const claimRefund = async (marketId: bigint) => {
+        const vamosAddress = getVamosAddress(chain?.id);
+        if (!vamosAddress) {
+            throw new Error("Vamos contract address not configured for this network");
+        }
+
         return writeContract({
-            address: VAMOS_CONTRACT_ADDRESS,
+            address: vamosAddress,
             abi: VamosAbi,
             functionName: "claimRefund",
             args: [marketId],
@@ -140,6 +160,7 @@ export function useClaimRefund() {
  * Hook to resolve a market (judge only)
  */
 export function useResolveMarket() {
+    const { chain } = useAccount();
     const { data: hash, writeContract, isPending, error } = useWriteContract();
 
     const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -148,8 +169,13 @@ export function useResolveMarket() {
         });
 
     const resolveMarket = async (marketId: bigint, winningOutcome: bigint) => {
+        const vamosAddress = getVamosAddress(chain?.id);
+        if (!vamosAddress) {
+            throw new Error("Vamos contract address not configured for this network");
+        }
+
         return writeContract({
-            address: VAMOS_CONTRACT_ADDRESS,
+            address: vamosAddress,
             abi: VamosAbi,
             functionName: "resolveMarket",
             args: [marketId, winningOutcome],
@@ -170,6 +196,7 @@ export function useResolveMarket() {
  * Hook to pause a market (judge only)
  */
 export function usePauseMarket() {
+    const { chain } = useAccount();
     const { data: hash, writeContract, isPending, error } = useWriteContract();
 
     const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -178,8 +205,13 @@ export function usePauseMarket() {
         });
 
     const pauseMarket = async (marketId: bigint) => {
+        const vamosAddress = getVamosAddress(chain?.id);
+        if (!vamosAddress) {
+            throw new Error("Vamos contract address not configured for this network");
+        }
+
         return writeContract({
-            address: VAMOS_CONTRACT_ADDRESS,
+            address: vamosAddress,
             abi: VamosAbi,
             functionName: "pauseMarket",
             args: [marketId],
@@ -200,7 +232,7 @@ export function usePauseMarket() {
  * Hook to handle ERC20 token approval for the Vamos contract
  */
 export function useTokenApproval() {
-    const { address: userAddress } = useAccount();
+    const { address: userAddress, chain } = useAccount();
     const { data: hash, writeContract, isPending, error } = useWriteContract();
 
     const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -208,26 +240,36 @@ export function useTokenApproval() {
             hash,
         });
 
+    const vamosAddress = getVamosAddress(chain?.id);
+    const tokenAddress = getTokenAddress(chain?.id);
+
     // Read current allowance
     const {
         data: currentAllowance,
         refetch: refetchAllowance,
     } = useReadContract({
-        address: VAMOS_TOKEN_ADDRESS,
+        address: tokenAddress ?? undefined,
         abi: ERC20Abi,
         functionName: "allowance",
-        args: userAddress ? [userAddress, VAMOS_CONTRACT_ADDRESS] : undefined,
+        args: userAddress && vamosAddress ? [userAddress, vamosAddress] : undefined,
         query: {
-            enabled: !!userAddress,
+            enabled: !!userAddress && !!vamosAddress && !!tokenAddress,
         },
     });
 
     const approve = async (amount: bigint) => {
+        if (!tokenAddress) {
+            throw new Error("Token contract address not configured for this network");
+        }
+        if (!vamosAddress) {
+            throw new Error("Vamos contract address not configured for this network");
+        }
+
         return writeContract({
-            address: VAMOS_TOKEN_ADDRESS,
+            address: tokenAddress,
             abi: ERC20Abi,
             functionName: "approve",
-            args: [VAMOS_CONTRACT_ADDRESS, amount],
+            args: [vamosAddress, amount],
         });
     };
 

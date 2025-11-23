@@ -12,20 +12,18 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useEffect, useState, useRef } from "react";
 import { ERC20Abi } from "@/abis/erc20Abi";
 import { formatUnits } from "viem";
-import { Address } from "viem";
 import { Button } from "@/components/ui/button";
 import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
 import { useWalletConnect } from "@/hooks/use-wallet-connect";
 import { NetworkSwitcher } from "@/components/network-switcher";
-
-const VAMOS_TOKEN_ADDRESS = process.env
-  .NEXT_PUBLIC_VAMOS_TOKEN_ADDRESS as Address;
+import { getTokenAddress } from "@/lib/contracts";
 
 export function Navbar() {
   const router = useRouter();
   const { disconnect } = useDisconnect();
   const { context } = useMiniApp();
   const [isOpen, setIsOpen] = useState(false);
+  const { chain } = useAccount();
 
   // Use wallet connect hook
   const {
@@ -44,22 +42,28 @@ export function Navbar() {
 
   const { data: ensName } = useEnsName(address);
 
+  // Get token address for current chain
+  const tokenAddress = getTokenAddress(chain?.id);
+
   // Get VAMOS token balance
   const { data: tokenBalance, isLoading: isLoadingBalance } = useReadContract({
-    address: VAMOS_TOKEN_ADDRESS,
+    address: tokenAddress ?? undefined,
     abi: ERC20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
     query: {
-      enabled: !!address,
+      enabled: !!address && !!tokenAddress,
     },
   });
 
   // Get token decimals
   const { data: tokenDecimals } = useReadContract({
-    address: VAMOS_TOKEN_ADDRESS,
+    address: tokenAddress ?? undefined,
     abi: ERC20Abi,
     functionName: "decimals",
+    query: {
+      enabled: !!tokenAddress,
+    },
   });
 
   // Format the token balance
