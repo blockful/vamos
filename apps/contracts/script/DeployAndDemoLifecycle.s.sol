@@ -350,13 +350,13 @@ contract DeployAndDemoLifecycle is Script {
         
         uint256 user1BalanceBefore = token.balanceOf(user1);
         vm.broadcast(user1Pk);
-        vamos.claimWinnings(weatherMarketId);
+        vamos.claim(weatherMarketId);
         uint256 user1Received = token.balanceOf(user1) - user1BalanceBefore;
         console.log("  User1 claimed:", user1Received / 1 ether, "DEMO");
         
         uint256 user3BalanceBefore = token.balanceOf(user3);
         vm.broadcast(user3Pk);
-        vamos.claimWinnings(weatherMarketId);
+        vamos.claim(weatherMarketId);
         uint256 user3Received = token.balanceOf(user3) - user3BalanceBefore;
         console.log("  User3 claimed:", user3Received / 1 ether, "DEMO");
         
@@ -368,13 +368,13 @@ contract DeployAndDemoLifecycle is Script {
         
         user1BalanceBefore = token.balanceOf(user1);
         vm.broadcast(user1Pk);
-        vamos.claimWinnings(sportsMarketId);
+        vamos.claim(sportsMarketId);
         user1Received = token.balanceOf(user1) - user1BalanceBefore;
         console.log("  User1 claimed:", user1Received / 1 ether, "DEMO");
         
         uint256 user2BalanceBefore = token.balanceOf(user2);
         vm.broadcast(user2Pk);
-        vamos.claimWinnings(sportsMarketId);
+        vamos.claim(sportsMarketId);
         uint256 user2Received = token.balanceOf(user2) - user2BalanceBefore;
         console.log("  User2 claimed:", user2Received / 1 ether, "DEMO");
         
@@ -386,13 +386,13 @@ contract DeployAndDemoLifecycle is Script {
         
         user1BalanceBefore = token.balanceOf(user1);
         vm.broadcast(user1Pk);
-        vamos.claimRefund(cryptoMarketId);
+        vamos.claim(cryptoMarketId);
         user1Received = token.balanceOf(user1) - user1BalanceBefore;
         console.log("  User1 refunded:", user1Received / 1 ether, "DEMO");
         
         user2BalanceBefore = token.balanceOf(user2);
         vm.broadcast(user2Pk);
-        vamos.claimRefund(cryptoMarketId);
+        vamos.claim(cryptoMarketId);
         user2Received = token.balanceOf(user2) - user2BalanceBefore;
         console.log("  User2 refunded:", user2Received / 1 ether, "DEMO");
         
