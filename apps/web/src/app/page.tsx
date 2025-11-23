@@ -3,7 +3,7 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import { useRouter } from "next/navigation";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Pin } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ import { useEnsAddress } from "@/hooks/use-ens";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
 import { useTokenDecimals } from "@/hooks/use-token-decimals";
 import { base } from "viem/chains";
+import { env } from "@/lib/env";
 
 export default function Home() {
   const { isMiniAppReady } = useMiniApp();
@@ -60,7 +61,22 @@ export default function Home() {
   const { decimals } = useTokenDecimals(currentChainId);
 
   // Transform API markets to UI format with correct decimals
-  const markets = apiMarkets?.map((market) => transformMarketForUI(market, decimals ?? 18)) || [];
+  const transformedMarkets = apiMarkets?.map((market) => transformMarketForUI(market, decimals ?? 18)) || [];
+  
+  // Get highlighted market ID from environment (optional)
+  const highlightedMarketId = env.NEXT_PUBLIC_HIGHLIGHTED_MARKET_ID;
+  
+  // Sort markets: put highlighted market first if it exists
+  const markets = [...transformedMarkets].sort((a, b) => {
+    if (!highlightedMarketId) return 0;
+    
+    const aId = a.id;
+    const bId = b.id;
+    
+    if (aId === highlightedMarketId) return -1;
+    if (bId === highlightedMarketId) return 1;
+    return 0;
+  });
 
   // Collect all unique addresses for ENS resolution
   const addresses = Array.from(
@@ -209,14 +225,24 @@ export default function Home() {
               </p>
             </div>
           ) : (
-            markets.map((market) => (
+            markets.map((market) => {
+              const isHighlighted = highlightedMarketId && market.id === highlightedMarketId;
+              
+              return (
               <div
                 key={market.id}
-                className={`rounded-2xl p-5 hover:shadow-lg transition-all cursor-pointer active:scale-95 ${
+                className={`rounded-2xl p-5 hover:shadow-lg transition-all cursor-pointer active:scale-95 relative ${
                   market.status === "OPEN" ? "bg-[#FCFDF5]" : "bg-gray-100"
-                }`}
+                } ${isHighlighted ? "ring-4 ring-[#FEABEF] ring-opacity-50 shadow-xl" : ""}`}
                 onClick={() => router.push(`/markets/${market.chainId}/${market.marketId}`)}
               >
+                {/* Pin indicator for highlighted market */}
+                {isHighlighted && (
+                  <div className="absolute -top-2 -right-2 bg-[#FEABEF] text-black p-2 rounded-full shadow-lg z-10">
+                    <Pin className="h-4 w-4" />
+                  </div>
+                )}
+                
                 {/* Header */}
                 <div className="flex items-start justify-between">
                   <div className="w-12 h-12 rounded-full bg-[#FEABEF] flex items-center justify-center flex-shrink-0">
@@ -332,7 +358,8 @@ export default function Home() {
                   })}
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </section>
