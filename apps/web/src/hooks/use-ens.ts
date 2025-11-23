@@ -65,6 +65,34 @@ export function useEnsNames(addresses: string[]) {
 }
 
 /**
+ * Hook to resolve Ethereum address from an ENS name
+ */
+export function useEnsAddress(ensName: string | undefined) {
+  const publicClient = usePublicClient();
+
+  return useQuery({
+    queryKey: ["ens-address", ensName],
+    queryFn: async () => {
+      if (!ensName || !publicClient) return null;
+      
+      try {
+        const normalizedName = normalize(ensName);
+        const address = await publicClient.getEnsAddress({
+          name: normalizedName,
+        });
+        return address;
+      } catch (error) {
+        console.error("Error resolving ENS address:", error);
+        return null;
+      }
+    },
+    enabled: !!ensName && !!publicClient && ensName.includes('.'),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+  });
+}
+
+/**
  * Utility function to format address or ENS name for display
  */
 export function formatAddressOrEns(
