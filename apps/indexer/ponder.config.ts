@@ -6,11 +6,11 @@ export default createConfig({
   chains: {
     base: {
       id: 8453,
-      rpc: process.env.PONDER_RPC_URL_BASE || "https://mainnet.base.org",
+      rpc: process.env.RPC_URL || "https://mainnet.base.org",
     },
     celo: {
       id: 42220,
-      rpc: process.env.PONDER_RPC_URL_CELO || "https://forno.celo.org",
+      rpc: process.env.RPC_URL || "https://forno.celo.org",
     },
     sepolia: {
       id: 11155111,
@@ -24,14 +24,14 @@ export default createConfig({
         //   address: (process.env.VAMOS_ADDRESS_BASE as `0x${string}`) || "0x0000000000000000000000000000000000000000",
         //   startBlock: Number(process.env.VAMOS_START_BLOCK_BASE) || 0,
         // },
-        // celo: {
-        //   address: (process.env.VAMOS_ADDRESS_CELO as `0x${string}`) || "0x0000000000000000000000000000000000000000",
-        //   startBlock: Number(process.env.VAMOS_START_BLOCK_CELO) || 0,
-        // },
-        sepolia: {
-          address: (process.env.VAMOS_ADDRESS as `0x${string}`),
+        celo: {
+          address: (process.env.VAMOS_ADDRESS as `0x${string}`) || "0x0000000000000000000000000000000000000000",
           startBlock: Number(process.env.VAMOS_START_BLOCK) || 0,
         },
+        // sepolia: {
+        //   address: (process.env.VAMOS_ADDRESS as `0x${string}`),
+        //   startBlock: Number(process.env.VAMOS_START_BLOCK) || 0,
+        // },
       },
       abi: VamosAbi,
     },
