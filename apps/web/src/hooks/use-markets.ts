@@ -68,8 +68,7 @@ const MARKETS_QUERY = `
   }
 `;
 
-// API URL - ajuste conforme necessário
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:42069/graphql";
+const API_URL = process.env.NEXT_PUBLIC_GRAPHQL_API_URL as string;
 
 /**
  * Hook to fetch markets from the indexer API
