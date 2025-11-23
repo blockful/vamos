@@ -54,20 +54,20 @@ const CHAIN_ID = process.env.CHAIN_ID as string
           transactionHash: log.transactionHash,
         });
 
-        try {
-          const result = await cdp.evm.sendTransaction({
-            address: account.address,
-            transaction: {
-              to: "0x...",
-              value: parseEther("0.0001"),
-            },
-            network: "base-sepolia",
-          });
-          console.log(`Action executed: ${result.transactionHash}`);
+        // try {
+        //   const result = await cdp.evm.sendTransaction({
+        //     address: account.address,
+        //     transaction: {
+        //       to: "0x...",
+        //       value: parseEther("0.0001"),
+        //     },
+        //     network: "base-sepolia",
+        //   });
+        //   console.log(`Action executed: ${result.transactionHash}`);
 
-        } catch (error) {
-          console.error("Error executing automated action:", error);
-        }
+        // } catch (error) {
+        //   console.error("Error executing automated action:", error);
+        // }
       }
     },
   });
