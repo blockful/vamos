@@ -1,7 +1,7 @@
 "use client";
 
 import { LogOut } from "lucide-react";
-import { useAccount, useDisconnect, useReadContract } from "wagmi";
+import { useAccount, useDisconnect, useReadContract, useConnect } from "wagmi";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useMiniApp } from "@/contexts/miniapp-context";
@@ -9,16 +9,24 @@ import { useEffect, useState, useRef } from "react";
 import { ERC20Abi } from "@/abis/erc20Abi";
 import { formatUnits } from "viem";
 import { Address } from "viem";
+import { Button } from "@/components/ui/button";
+import { sdk } from "@farcaster/frame-sdk";
+import type { Connector } from "wagmi";
+import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
 
 const VAMOS_TOKEN_ADDRESS = process.env
   .NEXT_PUBLIC_VAMOS_TOKEN_ADDRESS as Address;
 
 export function Navbar() {
   const router = useRouter();
-  const { address, isConnected: wagmiIsConnected } = useAccount();
+  const { address, isConnected: wagmiIsConnected, isConnecting } = useAccount();
   const { disconnect } = useDisconnect();
-  const { context } = useMiniApp();
+  const { connect, connectors } = useConnect();
+  const { context, isMiniAppReady } = useMiniApp();
+  const { data: ensName } = useEnsName(address);
   const [isOpen, setIsOpen] = useState(false);
+  const [isRequestingWallet, setIsRequestingWallet] = useState(false);
+  const [showWalletOptions, setShowWalletOptions] = useState(false);
 
   // Only consider connected if we have a valid address
   const isConnected = wagmiIsConnected && !!address;
@@ -112,6 +120,64 @@ export function Navbar() {
     }
   };
 
+  // Function to request wallet access
+  const handleConnectWallet = () => {
+    // Show wallet options if multiple connectors available
+    setShowWalletOptions(true);
+  };
+
+  // Function to connect with specific connector
+  const handleConnectorClick = async (connector: Connector) => {
+    try {
+      setIsRequestingWallet(true);
+      setShowWalletOptions(false);
+
+      // If Farcaster connector, request wallet access first
+      if (connector.id === "farcaster") {
+        await sdk.wallet.ethProvider.request({
+          method: "eth_requestAccounts",
+        });
+      }
+
+      // Connect with selected connector
+      connect({ connector });
+    } catch (error) {
+      console.error("Error connecting wallet:", error);
+      setShowWalletOptions(true); // Show options again on error
+    } finally {
+      setIsRequestingWallet(false);
+    }
+  };
+
+  // Get display name for connector
+  const getConnectorName = (connector: Connector) => {
+    if (connector.id === "farcaster") return "Farcaster Wallet";
+    if (connector.id === "injected") {
+      // Try to detect which injected wallet
+      if (typeof window !== "undefined") {
+        if ((window as any).ethereum?.isMetaMask) return "MetaMask";
+        if ((window as any).ethereum?.isCoinbaseWallet)
+          return "Coinbase Wallet";
+        if ((window as any).ethereum?.isRabby) return "Rabby Wallet";
+      }
+      return "Browser Wallet";
+    }
+    return connector.name;
+  };
+
+  // Get icon for connector
+  const getConnectorIcon = (connector: Connector) => {
+    if (connector.id === "farcaster") return "🟣";
+    if (connector.id === "injected") {
+      if (typeof window !== "undefined") {
+        if ((window as any).ethereum?.isMetaMask) return "🦊";
+        if ((window as any).ethereum?.isCoinbaseWallet) return "💙";
+      }
+      return "💳";
+    }
+    return "🔗";
+  };
+
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -132,6 +198,15 @@ export function Navbar() {
     }
   }, [isOpen]);
 
+  // Redirect to markets when connected
+  useEffect(() => {
+    // Only redirect if we have a valid connection with an address
+    // and we're not currently connecting
+    if (isConnected && address && !isConnecting && isMiniAppReady) {
+      router.push("/markets");
+    }
+  }, [isConnected, address, isConnecting, isMiniAppReady, router]);
+
   return (
     <header className="fixed top-2 left-2 right-2 z-50 bg-[#FEABEF] rounded-2xl mb-2">
       <div className="flex h-20 items-center justify-between px-6">
@@ -149,8 +224,69 @@ export function Navbar() {
           />
         </button>
 
-        {/* Right side - Avatar and Balance */}
-        {isConnected && (
+        {/* Right side - Connect Wallet or Avatar and Balance */}
+        {!isConnected ? (
+          <div className="flex items-center gap-3">
+            {!showWalletOptions ? (
+              <Button
+                onClick={handleConnectWallet}
+                disabled={isConnecting || isRequestingWallet}
+                className="bg-[#111909] hover:bg-[#111909]/90 disabled:bg-gray-400 text-white font-semibold py-2 px-6"
+              >
+                {isConnecting || isRequestingWallet ? (
+                  <div className="flex items-center gap-2 justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Connecting...</span>
+                  </div>
+                ) : (
+                  "Connect Wallet"
+                )}
+              </Button>
+            ) : (
+              <div className="relative">
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <p className="text-sm text-gray-600 text-center px-4 py-3 border-b border-gray-200">
+                    Choose a wallet to connect
+                  </p>
+
+                  {/* Wallet Options */}
+                  <div className="p-2">
+                    {connectors.map((connector) => (
+                      <Button
+                        key={connector.id}
+                        onClick={() => handleConnectorClick(connector)}
+                        disabled={isConnecting || isRequestingWallet}
+                        variant="outline"
+                        className="w-full py-3 px-4 flex items-center justify-between hover:bg-gray-50 mb-2"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">
+                            {getConnectorIcon(connector)}
+                          </span>
+                          <span className="font-medium">
+                            {getConnectorName(connector)}
+                          </span>
+                        </div>
+                        {isConnecting && (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        )}
+                      </Button>
+                    ))}
+
+                    {/* Cancel Button */}
+                    <Button
+                      onClick={() => setShowWalletOptions(false)}
+                      variant="ghost"
+                      className="w-full mt-1"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
           <div className="flex flex-row items-center gap-3 relative">
             {/* Avatar with Dropdown */}
             <div ref={dropdownRef} className="relative">
@@ -183,6 +319,9 @@ export function Navbar() {
                   <div className="px-4 py-3 border-b border-gray-200">
                     <p className="text-sm font-medium text-gray-700">
                       {displayName}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 font-mono">
+                      {formatAddressOrEns(address, ensName, true)}
                     </p>
                   </div>
                   <button
