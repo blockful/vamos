@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useCreateMarket } from "@/hooks/use-vamos-contract";
@@ -79,7 +78,6 @@ export default function Home() {
   const formik = useFormik({
     initialValues: {
       title: "",
-      description: "",
       judge: "",
       options: ["", ""], // Array de strings para as opções
     },
@@ -385,24 +383,8 @@ export default function Home() {
                 name="title"
                 value={formik.values.title}
                 onChange={formik.handleChange}
+                placeholder="e.g., Will Alice or Bob win the Tennis match?"
                 className="w-full !border-2 !border-[#111909]"
-              />
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <Label
-                htmlFor="description"
-                className="text-base font-medium text-black"
-              >
-                Description
-              </Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={formik.values.description}
-                onChange={formik.handleChange}
-                className="w-full min-h-[100px] border-2 border-[#111909]"
               />
             </div>
 
@@ -436,6 +418,7 @@ export default function Home() {
                 name="judge"
                 value={formik.values.judge}
                 onChange={formik.handleChange}
+                placeholder="Enter wallet address or ENS name (leave empty to judge yourself)"
                 className="w-full !border-2 !border-[#111909]"
               />
             </div>
