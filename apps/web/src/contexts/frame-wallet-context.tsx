@@ -4,14 +4,15 @@ import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactNode } from "react";
 import { WagmiProvider, createConfig, http } from "wagmi";
-import { celo, sepolia, mainnet } from "wagmi/chains";
+import { celo, sepolia, mainnet, base } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 
 const config = createConfig({
-  chains: [celo, sepolia, mainnet],
+  chains: [celo, base, sepolia, mainnet],
   connectors: [farcasterMiniApp(), injected()],
   transports: {
     [celo.id]: http(),
+    [base.id]: http(),
     [sepolia.id]: http(),
     [mainnet.id]: http(),
   },
