@@ -9,7 +9,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   usePlacePrediction,
   useTokenApproval,
@@ -29,6 +29,7 @@ import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
 import { useToast } from "@/hooks/use-toast";
 import { getFirstSentence } from "@/app/helpers/getFirstSentence";
 import { useAccount } from "wagmi";
+import { useTokenDecimals } from "@/hooks/use-token-decimals";
 
 export default function OptionDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -50,6 +51,9 @@ export default function OptionDetails() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [needsApproval, setNeedsApproval] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Ref to prevent duplicate prediction placements after approval
+  const isPlacingPredictionRef = useRef(false);
 
   const { placePrediction, isPending, isConfirming, isConfirmed, error } =
     usePlacePrediction();
@@ -75,8 +79,11 @@ export default function OptionDetails() {
     error: outcomeError,
   } = useOutcome(outcomeId || "");
 
-  // Transform outcome data for UI
-  const option = outcomeData ? transformOutcomeForUI(outcomeData) : null;
+  // Get token decimals for the current chain
+  const { decimals } = useTokenDecimals(chain?.id);
+
+  // Transform outcome data for UI with correct decimals
+  const option = outcomeData ? transformOutcomeForUI(outcomeData, decimals ?? 18) : null;
 
   // Get all unique addresses from bets for ENS resolution
   const betAddresses = useMemo(() => {
@@ -120,21 +127,26 @@ export default function OptionDetails() {
         setIsDrawerOpen(false);
         setShowConfirmation(false);
         setBetAmount(0);
+        // Reset the ref for next bet
+        isPlacingPredictionRef.current = false;
       }, 2000);
     }
   }, [isConfirmed, betAmount, toast]);
 
   // Refetch allowance and proceed with prediction after approval
   useEffect(() => {
-    if (isApproveConfirmed && needsApproval) {
+    if (isApproveConfirmed && needsApproval && !isPlacingPredictionRef.current) {
       // After approval, wait a moment for the blockchain state to update, then refetch and place prediction
       const placePredictionAfterApproval = async () => {
+        // Set ref to prevent duplicate calls
+        isPlacingPredictionRef.current = true;
+        
         try {
           setIsProcessing(true);
           // Refetch allowance and wait for it
           await refetchAllowance();
 
-          const amountInWei = parseUnits(betAmount.toString(), 18);
+          const amountInWei = parseUnits(betAmount.toString(), decimals ?? 18);
           setNeedsApproval(false);
 
           // Now place the prediction
@@ -154,6 +166,8 @@ export default function OptionDetails() {
           });
         } finally {
           setIsProcessing(false);
+          // Reset ref after processing is complete
+          isPlacingPredictionRef.current = false;
         }
       };
       placePredictionAfterApproval();
@@ -167,6 +181,7 @@ export default function OptionDetails() {
     optionIndex,
     placePrediction,
     toast,
+    decimals,
   ]);
 
   const handleIncrement = () => setBetAmount((prev) => prev + 1);
@@ -210,8 +225,8 @@ export default function OptionDetails() {
     try {
       setIsProcessing(true);
 
-      // Convert bet amount to token units (assuming 18 decimals for ERC20)
-      const amountInWei = parseUnits(betAmount.toString(), 18);
+      // Convert bet amount to token units (using actual token decimals)
+      const amountInWei = parseUnits(betAmount.toString(), decimals ?? 18);
 
       // If we're in approval flow, wait for it to complete
       if (needsApproval && (isApprovePending || isApproveConfirming)) {

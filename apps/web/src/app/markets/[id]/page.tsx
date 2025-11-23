@@ -31,6 +31,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
 import { usePauseMarket, useResolveMarket } from "@/hooks/use-vamos-contract";
 import { formatTimeAgo } from "@/app/helpers/formatTimeAgo";
+import { useTokenDecimals } from "@/hooks/use-token-decimals";
 
 export default function MarketDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -76,7 +77,10 @@ export default function MarketDetails() {
     error: resolveError,
   } = useResolveMarket();
 
-  const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
+  // Get token decimals for the current chain
+  const { decimals } = useTokenDecimals(chain?.id);
+
+  const market = apiMarket ? transformMarketForDetailsUI(apiMarket, decimals ?? 18) : null;
 
   // Color palette for multiple options
   const getOptionColor = (index: number) => {

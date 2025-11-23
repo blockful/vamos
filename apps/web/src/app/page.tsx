@@ -20,6 +20,7 @@ import { useMarkets, transformMarketForUI } from "@/hooks/use-markets";
 import { formatCurrency } from "@/lib/utils";
 import { useEnsAddress } from "@/hooks/use-ens";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
+import { useTokenDecimals } from "@/hooks/use-token-decimals";
 
 export default function Home() {
   const { isMiniAppReady } = useMiniApp();
@@ -51,8 +52,11 @@ export default function Home() {
     judgeInput && judgeInput.includes(".") ? judgeInput : undefined
   );
 
-  // Transform API markets to UI format
-  const markets = apiMarkets?.map(transformMarketForUI) || [];
+  // Get token decimals for the current chain
+  const { decimals } = useTokenDecimals(chain?.id);
+
+  // Transform API markets to UI format with correct decimals
+  const markets = apiMarkets?.map((market) => transformMarketForUI(market, decimals ?? 18)) || [];
 
   // Collect all unique addresses for ENS resolution
   const addresses = Array.from(

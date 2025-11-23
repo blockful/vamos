@@ -322,15 +322,17 @@ export function useOutcome(outcomeId: string) {
 
 /**
  * Helper function to calculate user's bet amount for a specific outcome
+ * @param outcome - The outcome to calculate the user's bet for
+ * @param decimals - The number of decimals for the token (e.g., 6 for USDC, 18 for most tokens)
  */
-export function calculateUserBetForOutcome(outcome: Outcome): number {
+export function calculateUserBetForOutcome(outcome: Outcome, decimals: number = 18): number {
     if (!outcome.bets?.items || outcome.bets.items.length === 0) {
         return 0;
     }
 
     // Sum all bets from the user (should typically be just one per outcome)
     const totalUserBet = outcome.bets.items.reduce((sum, bet) => {
-        return sum + parseFloat(formatUnits(BigInt(bet.amount), 18));
+        return sum + parseFloat(formatUnits(BigInt(bet.amount), decimals));
     }, 0);
 
     return totalUserBet;
@@ -338,15 +340,17 @@ export function calculateUserBetForOutcome(outcome: Outcome): number {
 
 /**
  * Helper function to transform API market to UI format
+ * @param market - The market to transform
+ * @param decimals - The number of decimals for the token (e.g., 6 for USDC, 18 for most tokens)
  */
-export function transformMarketForUI(market: Market) {
-    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), 18));
+export function transformMarketForUI(market: Market, decimals: number = 18) {
+    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), decimals));
 
     // Calculate percentages for each outcome
     const options = market.outcomes.items.map((outcome) => {
-        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
+        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), decimals));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
-        const userBet = calculateUserBetForOutcome(outcome);
+        const userBet = calculateUserBetForOutcome(outcome, decimals);
 
         return {
             id: outcome.outcomeIndex,
@@ -379,15 +383,17 @@ export function transformMarketForUI(market: Market) {
 
 /**
  * Helper function to transform API market to detailed UI format for market details page
+ * @param market - The market to transform
+ * @param decimals - The number of decimals for the token (e.g., 6 for USDC, 18 for most tokens)
  */
-export function transformMarketForDetailsUI(market: Market) {
-    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), 18));
+export function transformMarketForDetailsUI(market: Market, decimals: number = 18) {
+    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), decimals));
 
     // Calculate percentages for each outcome
     const options = market.outcomes.items.map((outcome) => {
-        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
+        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), decimals));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
-        const userBet = calculateUserBetForOutcome(outcome);
+        const userBet = calculateUserBetForOutcome(outcome, decimals);
 
         return {
             name: outcome.description,
@@ -423,14 +429,16 @@ export function transformMarketForDetailsUI(market: Market) {
 
 /**
  * Helper function to transform API outcome to UI format for option details page
+ * @param outcome - The outcome to transform
+ * @param decimals - The number of decimals for the token (e.g., 6 for USDC, 18 for most tokens)
  */
-export function transformOutcomeForUI(outcome: Outcome) {
-    const totalAmount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
+export function transformOutcomeForUI(outcome: Outcome, decimals: number = 18) {
+    const totalAmount = parseFloat(formatUnits(BigInt(outcome.totalAmount), decimals));
 
     // Transform bets for UI - keep full address for ENS resolution
     const bets = outcome.bets?.items.map((bet) => ({
         address: bet.user, // Keep full address for ENS resolution
-        amount: parseFloat(formatUnits(BigInt(bet.amount), 18)),
+        amount: parseFloat(formatUnits(BigInt(bet.amount), decimals)),
         timestamp: bet.lastUpdated * 1000, // Convert to milliseconds
         avatar: null, // Avatar is not available from API, will fallback to /avatar.png
     })) || [];
