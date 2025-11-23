@@ -299,7 +299,10 @@ export default function Markets() {
                       option.outcomeIndex === market.winningOutcome;
 
                     return (
-                      <>
+                      <div
+                        key={index}
+                        className="relative h-8 bg-gray-200 rounded-full overflow-hidden"
+                      >
                         <div
                           className={`h-full flex items-center px-3 transition-all duration-300 ${
                             market.status === "BETS CLOSED" ? "opacity-70" : ""
@@ -318,7 +321,7 @@ export default function Markets() {
                             {option.percentage}%
                           </span>
                         </div>
-                      </>
+                      </div>
                     );
                   })}
                 </div>
