@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getFirstSentence } from "@/app/helpers/getFirstSentence";
 import { useAccount } from "wagmi";
 import { useTokenDecimals } from "@/hooks/use-token-decimals";
+import { formatCurrency } from "@/lib/utils";
 
 export default function OptionDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -72,7 +73,7 @@ export default function OptionDetails() {
   } = useOutcome(outcomeId || "");
 
   // Get token decimals for the current chain
-  const { decimals } = useTokenDecimals(chain?.id);
+  const { decimals } = useTokenDecimals(chainId);
 
   // Transform outcome data for UI with correct decimals
   const option = outcomeData
@@ -356,7 +357,7 @@ export default function OptionDetails() {
         <div className="flex-1">
           <h1 className="text-2xl font-semibold text-black">{option.name}</h1>
           <p className="text-lg font-semibold text-black">
-            ${option.totalAmount}
+            ${formatCurrency(option.totalAmount)}
           </p>
         </div>
       </div>
@@ -439,7 +440,7 @@ export default function OptionDetails() {
                   <p className="font-semibold text-black">
                     {formatAddressOrEns(bet.address, ensNames?.[bet.address])}
                   </p>
-                  <p className="text-lg font-bold text-black">${bet.amount}</p>
+                  <p className="text-lg font-bold text-black">${formatCurrency(bet.amount)}</p>
                 </div>
               </div>
             ))}

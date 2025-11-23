@@ -90,7 +90,7 @@ export default function MarketDetails() {
   } = useResolveMarket();
 
   // Get token decimals for the current chain
-  const { decimals } = useTokenDecimals(chain?.id);
+  const { decimals } = useTokenDecimals(chainId);
 
   const market = apiMarket
     ? transformMarketForDetailsUI(apiMarket, decimals ?? 18)
@@ -464,7 +464,7 @@ export default function MarketDetails() {
                       <div>
                         <p className="text-xs text-black opacity-70">Total</p>
                         <p className="text-sm font-semibold text-black">
-                          ${totalAmount}
+                          ${formatCurrency(totalAmount)}
                         </p>
                       </div>
                       {address && (
