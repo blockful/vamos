@@ -1,58 +1,97 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { useParams, useRouter } from "next/navigation";
-import { Share2, ChevronRight, ChevronLeft } from "lucide-react";
+import {
+  Share2,
+  ChevronRight,
+  ChevronLeft,
+  PartyPopperIcon,
+  DollarSign,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ChartContainer, RechartsPrimitive } from "@/components/ui/chart";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAccount } from "wagmi";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 
 import { useMarket, transformMarketForDetailsUI } from "@/hooks/use-markets";
 import { formatCurrency } from "@/lib/utils";
 import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
+import { usePauseMarket, useResolveMarket } from "@/hooks/use-vamos-contract";
+import { formatTimeAgo } from "@/app/helpers/formatTimeAgo";
 
 export default function MarketDetails() {
   const { isMiniAppReady } = useMiniApp();
   const params = useParams();
   const router = useRouter();
   const [isExiting, setIsExiting] = useState(false);
+  const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
+  const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
+  const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
   const marketId = parseInt(params.id as string);
+  const { address } = useAccount();
+  const { toast } = useToast();
 
   // Fetch market data from API
-  const { data: apiMarket, isLoading, error } = useMarket(marketId.toString());
+  const {
+    data: apiMarket,
+    isLoading,
+    error,
+    refetch,
+  } = useMarket(marketId.toString());
+
+  // Pause market hook
+  const {
+    pauseMarket,
+    isPending: isPausePending,
+    isConfirming: isPauseConfirming,
+    isConfirmed: isPauseConfirmed,
+    error: pauseError,
+  } = usePauseMarket();
+
+  // Resolve market hook
+  const {
+    resolveMarket,
+    isPending: isResolvePending,
+    isConfirming: isResolveConfirming,
+    isConfirmed: isResolveConfirmed,
+    error: resolveError,
+  } = useResolveMarket();
 
   const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
 
+  // Color palette for multiple options
+  const getOptionColor = (index: number) => {
+    const colors = [
+      "#A4D18E", // green
+      "#fbbf24", // yellow
+      "#FEABEF", // pink
+      "#A78BFA", // purple
+      "#60A5FA", // blue
+      "#F87171", // red
+    ];
+    return colors[index % colors.length];
+  };
+
   // Get ENS name for judge if market judge is an address
-  const judgeAddress = market?.judge && market.judge.startsWith("0x") ? market.judge : undefined;
+  const judgeAddress =
+    market?.judge && market.judge.startsWith("0x") ? market.judge : undefined;
   const { data: judgeEnsName } = useEnsName(judgeAddress);
 
-  // Get the latest percentages from chart data
-  const getLatestPercentages = () => {
-    if (market && market.chartData.length > 0) {
-      const latest = market.chartData[market.chartData.length - 1];
-      return {
-        option1: latest.option1,
-        option2: latest.option2,
-      };
-    }
-    return { option1: 50, option2: 50 };
-  };
-
-  const latestPercentages = getLatestPercentages();
-
-  // Calculate total amounts based on percentages
-  const getTotalAmounts = () => {
-    if (market) {
-      const total = market.totalVolume;
-      return {
-        option1: Math.round((total * latestPercentages.option1) / 100),
-        option2: Math.round((total * latestPercentages.option2) / 100),
-      };
-    }
-    return { option1: 50, option2: 50 };
-  };
-
-  const totalAmounts = getTotalAmounts();
+  // Get ENS name for creator if available
+  const creatorAddress =
+    apiMarket?.creator && apiMarket.creator.startsWith("0x")
+      ? apiMarket.creator
+      : undefined;
+  const { data: creatorEnsName } = useEnsName(creatorAddress);
 
   const handleBack = () => {
     setIsExiting(true);
@@ -60,6 +99,87 @@ export default function MarketDetails() {
       router.back();
     }, 300);
   };
+
+  const handlePauseMarket = async () => {
+    try {
+      await pauseMarket(BigInt(marketId));
+    } catch (err) {
+      console.error("Error pausing market:", err);
+    }
+  };
+
+  const handleResolveMarket = async () => {
+    if (selectedWinner === null) return;
+
+    try {
+      await resolveMarket(BigInt(marketId), BigInt(selectedWinner));
+    } catch (err) {
+      console.error("Error resolving market:", err);
+    }
+  };
+
+  // Helper function to extract first sentence from error message
+  const getFirstSentence = (message: string) => {
+    const match = message.match(/^[^.!?]+[.!?]/);
+    return match ? match[0] : message;
+  };
+
+  // Show error toast for pause
+  useEffect(() => {
+    if (pauseError) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: getFirstSentence(pauseError.message),
+      });
+    }
+  }, [pauseError, toast]);
+
+  // Show success toast and refetch data for pause
+  useEffect(() => {
+    if (isPauseConfirmed) {
+      toast({
+        title: "Betting Closed Successfully! 🎉",
+        description: "The betting period has been closed.",
+      });
+      setIsPauseModalOpen(false);
+      setTimeout(() => {
+        refetch();
+      }, 2000);
+    }
+  }, [isPauseConfirmed, toast, refetch]);
+
+  // Show error toast for resolve
+  useEffect(() => {
+    if (resolveError) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: getFirstSentence(resolveError.message),
+      });
+    }
+  }, [resolveError, toast]);
+
+  // Show success toast and refetch data for resolve
+  useEffect(() => {
+    if (isResolveConfirmed) {
+      toast({
+        title: "Market Resolved Successfully! 🏆",
+        description: "The winning outcome has been confirmed.",
+      });
+      setIsResolveModalOpen(false);
+      setSelectedWinner(null);
+      setTimeout(() => {
+        refetch();
+      }, 2000);
+    }
+  }, [isResolveConfirmed, toast, refetch]);
+
+  // Check if current user is the judge
+  const isJudge =
+    address &&
+    market?.judge &&
+    address.toLowerCase() === market.judge.toLowerCase();
 
   if (!isMiniAppReady || isLoading) {
     return (
@@ -128,12 +248,14 @@ export default function MarketDetails() {
             </div>
             <span
               className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-2 ${
-                market.status === "Betting Open"
+                market.status === "OPEN"
                   ? "bg-[#FEABEF] bg-opacity-40 text-[#CC66BA]"
+                  : market.status === "PAUSED"
+                  ? "bg-[#E3DAA2] bg-opacity-50 text-[#9A925C]"
                   : "bg-gray-300 text-gray-600"
               }`}
             >
-              {market.status === "Betting Open" && (
+              {market.status === "OPEN" && (
                 <div
                   className="w-2 h-2 rounded-full bg-[#CC66BA]"
                   style={{
@@ -142,7 +264,11 @@ export default function MarketDetails() {
                   }}
                 />
               )}
-              {market.status === "Betting Open" ? "BETS OPEN" : "BETS CLOSED"}
+              {market.status === "OPEN"
+                ? "BETS OPEN"
+                : market.status === "PAUSED"
+                ? "BETS LOCKED"
+                : "FINISHED"}
             </span>
           </div>
 
@@ -151,7 +277,27 @@ export default function MarketDetails() {
             <h1 className="text-2xl font-semibold text-black mb-2">
               {market.title.replace("Match: ", "Tennis Match: ")}
             </h1>
-            <p className="text-sm text-gray-700">{market.description}</p>
+
+            {/* Market metadata */}
+            <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+              {apiMarket?.createdAt && (
+                <span className="flex items-center">
+                  ⏱️ {formatTimeAgo(apiMarket.createdAt)}
+                </span>
+              )}
+              {creatorAddress && (
+                <span className="flex items-center">
+                  👤 Creator:{" "}
+                  {formatAddressOrEns(creatorAddress, creatorEnsName, true)}
+                </span>
+              )}
+              {judgeAddress && (
+                <span className="flex items-center">
+                  ⚖️ Judge:{" "}
+                  {formatAddressOrEns(judgeAddress, judgeEnsName, true)}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Judge and Volume */}
@@ -159,30 +305,89 @@ export default function MarketDetails() {
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-gray-300 flex-shrink-0" />
               <span className="text-sm text-black">
-                Judge: {judgeAddress ? formatAddressOrEns(judgeAddress, judgeEnsName, true) : market.judge}
+                Judge:{" "}
+                {judgeAddress
+                  ? formatAddressOrEns(judgeAddress, judgeEnsName, true)
+                  : market.judge}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-black">$</span>
+              <span className="text-lg font-bold text-black">
+                <DollarSign />
+              </span>
               <span className="text-sm text-black">
                 Volume: ${formatCurrency(market.totalVolume)}
               </span>
             </div>
+            {/* Winner Display - Only show if market is RESOLVED */}
+            {market.status === "RESOLVED" &&
+              market.winningOutcome !== undefined && (
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-black">
+                    <PartyPopperIcon />
+                  </span>
+                  <span className="text-sm text-black flex items-center gap-2">
+                    Winner:{" "}
+                    <span className="inline-flex items-center bg-[#A4D18E] text-black font-semibold px-2 py-1 rounded-full text-sm">
+                      {market.options.find(
+                        (opt) => opt.outcomeIndex === market.winningOutcome
+                      )?.name || "Unknown"}
+                    </span>
+                  </span>
+                </div>
+              )}
           </div>
 
-          {/* Share Button */}
-          <button className="w-full bg-gray-200 hover:bg-gray-300 text-black font-semibold py-2 rounded-2xl flex items-center justify-center gap-2 transition-colors">
+          {/* Action Buttons */}
+          {isJudge && market.status === "OPEN" && (
+            <Button
+              onClick={() => setIsPauseModalOpen(true)}
+              disabled={isPausePending || isPauseConfirming}
+              className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-medium rounded-full border-2 border-[#111909]"
+              style={{ boxShadow: "2px 2px 0px #111909" }}
+            >
+              {isPausePending || isPauseConfirming ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black" />
+                  {isPausePending ? "Closing..." : "Confirming..."}
+                </>
+              ) : (
+                "Close Betting"
+              )}
+            </Button>
+          )}
+          {isJudge && market.status === "PAUSED" && (
+            <Button
+              onClick={() => setIsResolveModalOpen(true)}
+              disabled={isResolvePending || isResolveConfirming}
+              className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-medium rounded-full border-2 border-[#111909]"
+              style={{ boxShadow: "2px 2px 0px #111909" }}
+            >
+              {isResolvePending || isResolveConfirming ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black" />
+                  {isResolvePending ? "Resolving..." : "Confirming..."}
+                </>
+              ) : (
+                "Confirm Result"
+              )}
+            </Button>
+          )}
+          <Button
+            className="gap-2 bg-gray-200 hover:bg-gray-300 w-full text-black font-medium rounded-full border-2 border-[#111909]"
+            style={{ boxShadow: "2px 2px 0px #111909" }}
+          >
             <Share2 className="h-4 w-4" />
             Share
-          </button>
+          </Button>
         </div>
 
         {/* Predictions Chart */}
-        <div className="bg-[#FCFDF5] rounded-2xl p-5 space-y-4">
-          <h2 className="text-xl font-bold text-black">Predictions</h2>
+        {/* <div className="bg-[#FCFDF5] rounded-2xl p-5 space-y-4">
+          <h2 className="text-xl font-bold text-black">Predictions</h2> */}
 
-          {/* Legend */}
-          <div className="flex gap-6 items-center">
+        {/* Legend */}
+        {/* <div className="flex gap-6 items-center">
             <div className="flex items-center gap-2">
               <div
                 className="w-3 h-3 rounded-full"
@@ -201,10 +406,10 @@ export default function MarketDetails() {
                 {market.options[1].name}
               </span>
             </div>
-          </div>
+          </div> */}
 
-          {/* Chart */}
-          <ChartContainer
+        {/* Chart */}
+        {/* <ChartContainer
             config={{
               option1: {
                 label: market.options[0].name,
@@ -264,39 +469,50 @@ export default function MarketDetails() {
                 name={market.options[1].name}
               />
             </RechartsPrimitive.LineChart>
-          </ChartContainer>
-        </div>
+          </ChartContainer> */}
+        {/* </div> */}
 
         {/* Betting Options */}
         <div className="space-y-2">
           {market.options.map((option, index) => {
-            const percentage =
-              index === 0
-                ? latestPercentages.option1
-                : latestPercentages.option2;
-            const totalAmount =
-              index === 0 ? totalAmounts.option1 : totalAmounts.option2;
+            // Use the actual data from the option object
+            const percentage = option.percentage || 0;
+            const totalAmount = option.totalAmount || 0;
+            const userBet = option.userBet || 0;
+
+            const isWinner =
+              market.status === "RESOLVED" &&
+              market.winningOutcome !== undefined &&
+              option.outcomeIndex === market.winningOutcome;
 
             return (
               <button
                 key={index}
+                disabled={market.status !== "OPEN"}
                 onClick={() => router.push(`/markets/${marketId}/${index}`)}
-                className="w-full rounded-2xl overflow-hidden relative h-auto transition-all hover:shadow-lg active:scale-95"
+                className={`w-full rounded-2xl overflow-hidden relative h-auto transition-all hover:shadow-lg active:scale-95`}
               >
                 {/* Colored background for left side and white for right */}
                 <div
                   className="absolute inset-0"
                   style={{
-                    background: `linear-gradient(to right, ${index === 0 ? "#A4D18E" : "#E3DAA2"} 0%, ${index === 0 ? "#A4D18E" : "#E3DAA2"} ${percentage}%, white ${percentage}%, white 100%)`,
+                    background: `linear-gradient(to right, ${
+                      index === 0 ? "#A4D18E" : "#E3DAA2"
+                    } 0%, ${
+                      index === 0 ? "#A4D18E" : "#E3DAA2"
+                    } ${percentage}%, white ${percentage}%, white 100%)`,
                   }}
                 />
 
                 {/* Content */}
                 <div className="relative flex items-center justify-between h-full p-4">
                   <div className="flex-1 flex flex-col">
-                    <p className="text-lg text-left font-semibold text-black mb-2">
-                      {option.name}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg text-left font-semibold text-black mb-2">
+                        {option.name}
+                      </p>
+                      {isWinner && <span className="text-2xl">🏆</span>}
+                    </div>
                     <div className="flex gap-8">
                       <div>
                         <p className="text-xs text-black opacity-70">Total</p>
@@ -309,22 +525,161 @@ export default function MarketDetails() {
                           Your bet
                         </p>
                         <p className="text-sm font-semibold text-black">
-                          $0.00
+                          ${formatCurrency(userBet)}
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Chevron button */}
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-black flex-shrink-0 ml-4">
-                    <ChevronRight className="h-5 w-5 text-black" />
-                  </div>
+                  {market.status === "OPEN" && (
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-black flex-shrink-0 ml-4">
+                      <ChevronRight className="h-5 w-5 text-black" />
+                    </div>
+                  )}
                 </div>
               </button>
             );
           })}
         </div>
       </section>
+
+      {/* Pause Market Confirmation Modal */}
+      <Drawer open={isPauseModalOpen} onOpenChange={setIsPauseModalOpen}>
+        <DrawerContent className="bg-[#FCFDF5]">
+          <div className="mx-auto w-full max-w-sm">
+            <DrawerHeader>
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-[#FEABEF] flex items-center justify-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    className="w-8 h-8"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15.75 5.25v13.5m-7.5-13.5v13.5"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <DrawerTitle className="text-center text-black text-xl">
+                Once you close this betting period, it can&apos;t be reopened.
+                Are you sure you want to continue?
+              </DrawerTitle>
+              <DrawerDescription className="text-center text-gray-600">
+                {isPausePending && "Waiting for confirmation in your wallet..."}
+                {isPauseConfirming && "Closing betting period..."}
+              </DrawerDescription>
+            </DrawerHeader>
+            <DrawerFooter>
+              <Button
+                onClick={handlePauseMarket}
+                disabled={isPausePending || isPauseConfirming}
+                className="bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-medium rounded-full border-2 border-[#111909]"
+                style={{ boxShadow: "2px 2px 0px #111909" }}
+              >
+                {isPausePending || isPauseConfirming ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black" />
+                    {isPausePending ? "Closing..." : "Confirming..."}
+                  </div>
+                ) : (
+                  "Confirm & continue"
+                )}
+              </Button>
+              <DrawerClose asChild>
+                <Button
+                  variant="outline"
+                  className="bg-gray-200 hover:bg-gray-300 text-black font-medium rounded-full border-2 border-[#111909]"
+                  style={{ boxShadow: "2px 2px 0px #111909" }}
+                  disabled={isPausePending || isPauseConfirming}
+                >
+                  Cancel
+                </Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Resolve Market Modal */}
+      <Drawer open={isResolveModalOpen} onOpenChange={setIsResolveModalOpen}>
+        <DrawerContent className="bg-[#FCFDF5]">
+          <div className="mx-auto w-full max-w-sm">
+            <DrawerHeader>
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-[#FEABEF] flex items-center justify-center">
+                  🏆
+                </div>
+              </div>
+              <DrawerTitle className="text-center text-black text-xl">
+                Select the option that won the competition
+              </DrawerTitle>
+              <DrawerDescription className="text-center text-gray-600">
+                {isResolvePending &&
+                  "Waiting for confirmation in your wallet..."}
+                {isResolveConfirming && "Resolving market..."}
+              </DrawerDescription>
+            </DrawerHeader>
+            <DrawerFooter className="space-y-2">
+              {market?.options.map((option, index) => (
+                <Button
+                  key={index}
+                  onClick={() => setSelectedWinner(index)}
+                  disabled={isResolvePending || isResolveConfirming}
+                  style={{ boxShadow: "2px 2px 0px #111909" }}
+                  className={`w-full text-black font-medium rounded-full 
+           ${
+             selectedWinner === index
+               ? index === 0
+                 ? "bg-[#A4D18E] border-2 border-black"
+                 : "bg-[#fbbf24] border-2 border-black"
+               : index === 0
+               ? "bg-[#A4D18E] bg-opacity-50"
+               : "bg-[#fbbf24] bg-opacity-50"
+           } disabled:opacity-50`}
+                >
+                  {option.name}
+                </Button>
+              ))}
+              <Button
+                onClick={handleResolveMarket}
+                disabled={
+                  selectedWinner === null ||
+                  isResolvePending ||
+                  isResolveConfirming
+                }
+                className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-medium rounded-full border-2 border-[#111909]"
+                style={{ boxShadow: "2px 2px 0px #111909" }}
+              >
+                {isResolvePending || isResolveConfirming ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black" />
+                    {isResolvePending ? "Resolving..." : "Confirming..."}
+                  </div>
+                ) : (
+                  "Confirm Result"
+                )}
+              </Button>
+              <DrawerClose asChild>
+                <Button
+                  variant="outline"
+                  className="w-full bg-gray-200 hover:bg-gray-300 text-black font-semibold py-6 rounded-2xl"
+                  disabled={isResolvePending || isResolveConfirming}
+                  onClick={() => setSelectedWinner(null)}
+                >
+                  Cancel
+                </Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </main>
   );
 }

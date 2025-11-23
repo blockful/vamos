@@ -167,6 +167,36 @@ export function useResolveMarket() {
 }
 
 /**
+ * Hook to pause a market (judge only)
+ */
+export function usePauseMarket() {
+    const { data: hash, writeContract, isPending, error } = useWriteContract();
+
+    const { isLoading: isConfirming, isSuccess: isConfirmed } =
+        useWaitForTransactionReceipt({
+            hash,
+        });
+
+    const pauseMarket = async (marketId: bigint) => {
+        return writeContract({
+            address: VAMOS_CONTRACT_ADDRESS,
+            abi: VamosAbi,
+            functionName: "pauseMarket",
+            args: [marketId],
+        });
+    };
+
+    return {
+        pauseMarket,
+        isPending,
+        isConfirming,
+        isConfirmed,
+        error,
+        hash,
+    };
+}
+
+/**
  * Hook to handle ERC20 token approval for the Vamos contract
  */
 export function useTokenApproval() {
