@@ -13,9 +13,12 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import { useState, useEffect } from "react";
-import { usePlacePrediction } from "@/hooks/use-vamos-contract";
+import { useState, useEffect, useMemo } from "react";
+import { usePlacePrediction, useTokenApproval } from "@/hooks/use-vamos-contract";
 import { useMarket, transformOutcomeForUI } from "@/hooks/use-markets";
+import { parseUnits } from "viem";
+import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
+import { formatCurrency } from "@/lib/utils";
 
 export default function OptionDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -26,9 +29,20 @@ export default function OptionDetails() {
   const [betAmount, setBetAmount] = useState(30);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [needsApproval, setNeedsApproval] = useState(false);
 
   const { placePrediction, isPending, isConfirming, isConfirmed, error } =
     usePlacePrediction();
+
+  const {
+    currentAllowance,
+    approve,
+    isPending: isApprovePending,
+    isConfirming: isApproveConfirming,
+    isConfirmed: isApproveConfirmed,
+    error: approveError,
+    refetchAllowance,
+  } = useTokenApproval();
 
   // Fetch market data to get the outcome
   const {
@@ -41,11 +55,46 @@ export default function OptionDetails() {
   const outcomeData = marketData?.outcomes.items[optionIndex];
   const option = outcomeData ? transformOutcomeForUI(outcomeData) : null;
 
+  // Get all unique addresses from bets for ENS resolution
+  const betAddresses = useMemo(() => {
+    return option?.bets.map((bet) => bet.address) || [];
+  }, [option?.bets]);
+
+  // Fetch ENS names for all bet addresses
+  const { data: ensNames } = useEnsNames(betAddresses);
+
   useEffect(() => {
     if (isConfirmed) {
       setShowConfirmation(true);
     }
   }, [isConfirmed]);
+
+  // Refetch allowance and proceed with prediction after approval
+  useEffect(() => {
+    if (isApproveConfirmed && needsApproval) {
+      // After approval, wait a moment for the blockchain state to update, then refetch and place prediction
+      const placePredictionAfterApproval = async () => {
+        try {
+          // Refetch allowance and wait for it
+          await refetchAllowance();
+          
+          const amountInWei = parseUnits(betAmount.toString(), 18);
+          setNeedsApproval(false);
+          
+          // Now place the prediction
+          await placePrediction(
+            BigInt(marketId),
+            BigInt(optionIndex),
+            amountInWei
+          );
+        } catch (err) {
+          console.error("Error placing prediction after approval:", err);
+          setNeedsApproval(false); // Reset state on error
+        }
+      };
+      placePredictionAfterApproval();
+    }
+  }, [isApproveConfirmed, needsApproval, refetchAllowance, betAmount, marketId, optionIndex, placePrediction]);
 
   const handleIncrement = () => setBetAmount((prev) => prev + 1);
   const handleDecrement = () => setBetAmount((prev) => Math.max(1, prev - 1));
@@ -81,13 +130,41 @@ export default function OptionDetails() {
     }
 
     try {
+      // Convert bet amount to token units (assuming 18 decimals for ERC20)
+      const amountInWei = parseUnits(betAmount.toString(), 18);
+
+      // If we're in approval flow, wait for it to complete
+      if (needsApproval && (isApprovePending || isApproveConfirming)) {
+        return;
+      }
+
+      // If approval was just confirmed, let the useEffect handle the prediction
+      if (needsApproval && isApproveConfirmed) {
+        return;
+      }
+
+      // Refetch the latest allowance before checking
+      const { data: latestAllowance } = await refetchAllowance();
+      const currentAllowanceValue = latestAllowance ?? currentAllowance;
+
+      // Check if approval is needed
+      if (currentAllowanceValue < amountInWei) {
+        setNeedsApproval(true);
+        await approve(amountInWei);
+        // Wait for approval confirmation before proceeding
+        return;
+      }
+
+      // If already approved, place prediction
+      setNeedsApproval(false);
       await placePrediction(
         BigInt(marketId),
         BigInt(optionIndex),
-        BigInt(betAmount)
+        amountInWei
       );
     } catch (err) {
       console.error("Error placing prediction:", err);
+      setNeedsApproval(false); // Reset state on error
     }
   };
 
@@ -155,7 +232,7 @@ export default function OptionDetails() {
                   {option.name}
                 </h1>
                 <p className="text-2xl font-semibold text-gray-700">
-                  ${option.totalAmount}
+                  ${formatCurrency(option.totalAmount)}
                 </p>
               </div>
             </div>
@@ -224,32 +301,44 @@ export default function OptionDetails() {
           <div>
             <h2 className="text-lg font-bold text-gray-900 mb-4">Bets</h2>
             <div className="space-y-3">
-              {option.bets.map((bet, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                >
-                  {/* Avatar */}
-                  <div className="w-12 h-12 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center">
-                    <span className="text-sm font-bold text-gray-600">
-                      {bet.user.charAt(0)}
-                    </span>
-                  </div>
+              {option.bets.map((bet, index) => {
+                const displayName = formatAddressOrEns(
+                  bet.address,
+                  ensNames?.[bet.address],
+                  true
+                );
+                const avatarLetter = ensNames?.[bet.address]
+                  ? ensNames[bet.address]!.charAt(0).toUpperCase()
+                  : bet.address.charAt(2).toUpperCase();
 
-                  {/* User Info */}
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900">{bet.user}</p>
-                    <p className="text-xs text-gray-500">{bet.address}</p>
-                  </div>
+                return (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  >
+                    {/* Avatar */}
+                    <div className="w-12 h-12 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center">
+                      <span className="text-sm font-bold text-gray-600">
+                        {avatarLetter}
+                      </span>
+                    </div>
 
-                  {/* Bet Amount */}
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-gray-900">
-                      ${bet.amount}
-                    </p>
+                    {/* User Info */}
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900">
+                        {displayName}
+                      </p>
+                    </div>
+
+                    {/* Bet Amount */}
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-gray-900">
+                        ${formatCurrency(bet.amount)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -356,12 +445,27 @@ export default function OptionDetails() {
                         onClick={handleConfirmBet}
                         className="w-full text-white font-bold py-6 text-lg rounded-2xl"
                         style={{ backgroundColor: "#A4D18E" }}
-                        disabled={isPending || isConfirming || betAmount < 1}
+                        disabled={
+                          isPending ||
+                          isConfirming ||
+                          isApprovePending ||
+                          isApproveConfirming ||
+                          betAmount < 1
+                        }
                       >
                         {isPending || isConfirming
-                          ? "Processing..."
+                          ? "Confirming Bet..."
+                          : isApprovePending || isApproveConfirming
+                          ? "Approving Tokens..."
+                          : needsApproval && !isApproveConfirmed
+                          ? "Approve Tokens"
                           : "Confirm bet"}
                       </Button>
+                      {approveError && (
+                        <p className="text-sm text-red-500 text-center mt-2">
+                          Approval Error: {approveError.message}
+                        </p>
+                      )}
                       {error && (
                         <p className="text-sm text-red-500 text-center mt-2">
                           Error: {error.message}

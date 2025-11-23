@@ -1,6 +1,6 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
@@ -18,6 +18,7 @@ import { useCreateMarket } from "@/hooks/use-vamos-contract";
 import { useAccount } from "wagmi";
 import { isAddress } from "viem";
 import { useMarkets, transformMarketForUI } from "@/hooks/use-markets";
+import { formatCurrency } from "@/lib/utils";
 
 export default function Markets() {
   const { isMiniAppReady } = useMiniApp();
@@ -45,6 +46,14 @@ export default function Markets() {
 
   // Transform API markets to UI format
   const markets = apiMarkets?.map(transformMarketForUI) || [];
+
+  // Update markets list and close modal when transaction is confirmed
+  useEffect(() => {
+    if (isConfirmed && hash) {
+      setIsModalOpen(false);
+      setFormError("");
+    }
+  }, [isConfirmed, hash]);
 
   // Formik form
   const formik = useFormik({
@@ -85,12 +94,8 @@ export default function Markets() {
           validOptions // outcomes
         );
 
-        // Refetch markets after creating a new one
-        await refetch();
-
-        // Close modal and reset form
-        setIsModalOpen(false);
-        formik.resetForm();
+        // Don't close modal immediately - wait for confirmation
+        // The modal will show success message and close automatically
       } catch (error) {
         console.error("Error creating market:", error);
       }
@@ -204,7 +209,7 @@ export default function Markets() {
                     {market.title}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Volume: {market.volume}
+                    Volume: ${formatCurrency(market.volume)}
                   </p>
                 </div>
 
@@ -240,25 +245,35 @@ export default function Markets() {
         </div>
       </section>
 
-      {/* Floating Add Button */}
+      {/* Fixed Add Button */}
       <Button
         size="icon"
-        className="fixed bottom-8 right-8 w-16 h-16 bg-[#FEABEF] hover:bg-[#ff9be0] text-black rounded-full shadow-2xl transition-all hover:scale-110 z-50"
+        className="fixed bottom-4 right-2 w-16 h-16 bg-[#FEABEF] hover:bg-[#ff9be0] text-black rounded-full shadow-2xl transition-all hover:scale-110 z-50 pointer-events-auto"
         onClick={() => setIsModalOpen(true)}
       >
         <Plus className="h-8 w-8" />
       </Button>
 
       {/* Create Market Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#FCFDF5]">
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) {
+            // Reset form when modal is closed
+            formik.resetForm();
+            setFormError("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl h-screen max-h-screen overflow-y-auto bg-[#FCFDF5]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-black">
+            <DialogTitle className="text-2xl font-semibold text-black text-left">
               Create bet
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={formik.handleSubmit} className="space-y-6 mt-6">
+          <form onSubmit={formik.handleSubmit} className="space-y-6">
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="title" className="text-sm font-medium text-black">
@@ -267,10 +282,9 @@ export default function Markets() {
               <Input
                 id="title"
                 name="title"
-                placeholder="Enter market title"
                 value={formik.values.title}
                 onChange={formik.handleChange}
-                className="w-full border-gray-300"
+                className="w-full border-2 border-[#111909] rounded-lg"
               />
             </div>
 
@@ -285,10 +299,9 @@ export default function Markets() {
               <Textarea
                 id="description"
                 name="description"
-                placeholder="Enter market description"
                 value={formik.values.description}
                 onChange={formik.handleChange}
-                className="w-full min-h-[100px] border-gray-300"
+                className="w-full min-h-[80px] border-2 border-[#111909] rounded-lg"
               />
             </div>
 
@@ -303,7 +316,7 @@ export default function Markets() {
                 placeholder="Enter judge name or address"
                 value={formik.values.judge}
                 onChange={formik.handleChange}
-                className="w-full border-gray-300"
+                className="w-full border-2 border-[#111909] rounded-lg"
               />
             </div>
 
@@ -379,9 +392,22 @@ export default function Markets() {
 
             {/* Success message */}
             {isConfirmed && hash && (
-              <p className="text-sm text-green-600 mt-2 bg-green-50 p-3 rounded-md border border-green-200">
-                ✓ Market created successfully! TX: {hash.slice(0, 10)}...
-              </p>
+              <div className="space-y-3">
+                <p className="text-sm text-green-600 mt-2 bg-green-50 p-3 rounded-md border border-green-200">
+                  ✓ Market created successfully! TX: {hash.slice(0, 10)}...
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    formik.resetForm();
+                    refetch();
+                  }}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white"
+                >
+                  View Markets
+                </Button>
+              </div>
             )}
           </form>
         </DialogContent>

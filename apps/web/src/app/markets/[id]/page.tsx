@@ -3,15 +3,12 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useParams, useRouter } from "next/navigation";
 import { Share2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  ChartContainer,
-  ChartStyle,
-  RechartsPrimitive,
-} from "@/components/ui/chart";
-import Image from "next/image";
+import { ChartContainer, RechartsPrimitive } from "@/components/ui/chart";
 import { useState } from "react";
 
 import { useMarket, transformMarketForDetailsUI } from "@/hooks/use-markets";
+import { formatCurrency } from "@/lib/utils";
+import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
 
 export default function MarketDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -25,12 +22,9 @@ export default function MarketDetails() {
 
   const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
 
-  console.log({
-    apiMarket,
-    isLoading,
-    error,
-    market,
-  });
+  // Get ENS name for judge if market judge is an address
+  const judgeAddress = market?.judge && market.judge.startsWith("0x") ? market.judge : undefined;
+  const { data: judgeEnsName } = useEnsName(judgeAddress);
 
   // Get the latest percentages from chart data
   const getLatestPercentages = () => {
@@ -164,12 +158,14 @@ export default function MarketDetails() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-gray-300 flex-shrink-0" />
-              <span className="text-sm text-black">Judge: {market.judge}</span>
+              <span className="text-sm text-black">
+                Judge: {judgeAddress ? formatAddressOrEns(judgeAddress, judgeEnsName, true) : market.judge}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-black">$</span>
               <span className="text-sm text-black">
-                Volume: ${market.totalVolume}
+                Volume: ${formatCurrency(market.totalVolume)}
               </span>
             </div>
           </div>
