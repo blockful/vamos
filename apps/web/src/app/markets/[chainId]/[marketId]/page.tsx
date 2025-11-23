@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useSwitchChain } from "wagmi";
 import { useToast } from "@/hooks/use-toast";
 import { useOutcome } from "@/hooks/use-markets";
 import {
@@ -45,16 +45,23 @@ export default function MarketDetails() {
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
   const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
 
-  // params.id is the composite ID in format "chainId-marketId" (e.g., "8453-0")
-  const compositeMarketId = params.id as string;
-
-  // Extract chainId and marketId from the composite ID
-  const [chainIdStr, marketIdStr] = compositeMarketId.split("-");
-  const chainId = parseInt(chainIdStr || "0");
-  const marketId = parseInt(marketIdStr || "0");
+  // Extract chainId and marketId from separate params
+  const chainId = parseInt(params.chainId as string);
+  const marketId = parseInt(params.marketId as string);
+  
+  // Composite ID for API calls (format: "chainId-marketId")
+  const compositeMarketId = `${chainId}-${marketId}`;
 
   const { address, chain } = useAccount();
+  const { switchChain } = useSwitchChain();
   const { toast } = useToast();
+
+  // Switch to the correct network if needed
+  useEffect(() => {
+    if (address && chain?.id !== chainId && switchChain) {
+      switchChain({ chainId });
+    }
+  }, [address, chain?.id, chainId, switchChain]);
 
   // Fetch market data from API
   const {
@@ -413,96 +420,6 @@ export default function MarketDetails() {
           )}
         </div>
 
-        {/* Predictions Chart */}
-        {/* <div className="bg-[#FCFDF5] rounded-2xl p-5 space-y-4">
-          <h2 className="text-xl font-bold text-black">Predictions</h2> */}
-
-        {/* Legend */}
-        {/* <div className="flex gap-6 items-center">
-            <div className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: "#A4D18E" }}
-              />
-              <span className="text-sm font-medium text-black">
-                {market.options[0].name}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: "#E3DAA2" }}
-              />
-              <span className="text-sm font-medium text-black">
-                {market.options[1].name}
-              </span>
-            </div>
-          </div> */}
-
-        {/* Chart */}
-        {/* <ChartContainer
-            config={{
-              option1: {
-                label: market.options[0].name,
-                color: "#A4D18E",
-              },
-              option2: {
-                label: market.options[1].name,
-                color: "#E3DAA2",
-              },
-            }}
-            className="h-64 w-full"
-          >
-            <RechartsPrimitive.LineChart
-              data={market.chartData}
-              margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-            >
-              <RechartsPrimitive.CartesianGrid
-                strokeDasharray="3 3"
-                stroke="#e5e7eb"
-                vertical={false}
-              />
-              <RechartsPrimitive.XAxis
-                dataKey="date"
-                stroke="#6b7280"
-                fontSize={11}
-                tick={{ fill: "#6b7280" }}
-              />
-              <RechartsPrimitive.YAxis
-                stroke="#6b7280"
-                fontSize={11}
-                domain={[0, 100]}
-                tickFormatter={(value) => `${value}%`}
-                tick={{ fill: "#6b7280" }}
-              />
-              <RechartsPrimitive.Tooltip
-                contentStyle={{
-                  backgroundColor: "#1f2937",
-                  border: "1px solid #374151",
-                  borderRadius: "8px",
-                  color: "#fff",
-                }}
-              />
-              <RechartsPrimitive.Line
-                type="monotone"
-                dataKey="option1"
-                stroke="#A4D18E"
-                strokeWidth={2}
-                dot={false}
-                name={market.options[0].name}
-              />
-              <RechartsPrimitive.Line
-                type="monotone"
-                dataKey="option2"
-                stroke="#E3DAA2"
-                strokeWidth={2}
-                dot={false}
-                name={market.options[1].name}
-              />
-            </RechartsPrimitive.LineChart>
-          </ChartContainer> */}
-        {/* </div> */}
-
         {/* Betting Options */}
         <div className="space-y-2">
           {market.options.map((option, index) => {
@@ -521,7 +438,7 @@ export default function MarketDetails() {
                 key={index}
                 disabled={market.status !== "OPEN" || !address}
                 onClick={() =>
-                  router.push(`/markets/${compositeMarketId}/${index}`)
+                  router.push(`/markets/${chainId}/${marketId}/${index}`)
                 }
                 className={`w-full rounded-2xl overflow-hidden relative h-auto transition-all hover:shadow-lg active:scale-95 bg-white ${market.status !== "OPEN" || !address ? "cursor-not-allowed opacity-75" : ""}`}
               >
@@ -580,9 +497,11 @@ export default function MarketDetails() {
                       />
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-black flex-shrink-0 ml-4">
-                      <ChevronRight className="h-5 w-5 text-black" />
-                    </div>
+                    market.status === "OPEN" && (
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-black flex-shrink-0 ml-4">
+                        <ChevronRight className="h-5 w-5 text-black" />
+                      </div>
+                    )
                   )}
                 </div>
               </button>
@@ -744,3 +663,4 @@ export default function MarketDetails() {
     </main>
   );
 }
+

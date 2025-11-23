@@ -21,6 +21,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useEnsAddress } from "@/hooks/use-ens";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
 import { useTokenDecimals } from "@/hooks/use-token-decimals";
+import { base } from "viem/chains";
 
 export default function Home() {
   const { isMiniAppReady } = useMiniApp();
@@ -30,13 +31,16 @@ export default function Home() {
   const [formError, setFormError] = useState<string>("");
   const [judgeInput, setJudgeInput] = useState<string>("");
 
+  // Use Base as default chain when no wallet is connected
+  const currentChainId = chain?.id ?? base.id;
+
   // Fetch markets from API filtered by current chain
   const {
     data: apiMarkets,
     isLoading: isLoadingMarkets,
     error: marketsError,
     refetch,
-  } = useMarkets(chain?.id);
+  } = useMarkets(currentChainId);
 
   const {
     createMarket,
@@ -53,7 +57,7 @@ export default function Home() {
   );
 
   // Get token decimals for the current chain
-  const { decimals } = useTokenDecimals(chain?.id);
+  const { decimals } = useTokenDecimals(currentChainId);
 
   // Transform API markets to UI format with correct decimals
   const markets = apiMarkets?.map((market) => transformMarketForUI(market, decimals ?? 18)) || [];

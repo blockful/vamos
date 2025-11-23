@@ -8,16 +8,16 @@ import { ChevronDown } from "lucide-react";
 // Supported networks
 const SUPPORTED_NETWORKS = [
   {
-    id: celo.id,
-    name: "Celo",
-    shortName: "Celo",
-    icon: "🟢", // You can replace with actual icon/image
-  },
-  {
     id: base.id,
     name: "Base",
     shortName: "Base",
     icon: "🔵", // You can replace with actual icon/image
+  },
+  {
+    id: celo.id,
+    name: "Celo",
+    shortName: "Celo",
+    icon: "🟢", // You can replace with actual icon/image
   },
 ];
 

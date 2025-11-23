@@ -8,11 +8,11 @@ import { celo, base, mainnet } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 
 const config = createConfig({
-  chains: [celo, base, mainnet],
+  chains: [base, celo, mainnet],
   connectors: [farcasterMiniApp(), injected()],
   transports: {
-    [celo.id]: http(),
     [base.id]: http(),
+    [celo.id]: http(),
     [mainnet.id]: http(),
   },
   ssr: true,
