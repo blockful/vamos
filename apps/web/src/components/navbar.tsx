@@ -148,21 +148,13 @@ export function Navbar() {
     }
   }, [isOpen]);
 
-  // Redirect to markets when connected
-  useEffect(() => {
-    // Only redirect if we have a valid connection with an address
-    // and we're not currently connecting
-    if (isConnected && address && !isConnecting && isMiniAppReady) {
-      router.push("/markets");
-    }
-  }, [isConnected, address, isConnecting, isMiniAppReady, router]);
 
   return (
     <header className="fixed top-2 left-2 right-2 z-50 bg-[#FEABEF] rounded-2xl mb-2">
       <div className="flex h-20 items-center justify-between px-6">
         {/* Left side - Logo */}
         <button
-          onClick={() => router.push("/markets")}
+          onClick={() => router.push("/")}
           className="flex items-center hover:opacity-80 transition-opacity cursor-pointer"
         >
           <Image
@@ -207,7 +199,7 @@ export function Navbar() {
                         onClick={() => handleConnectorClick(connector)}
                         disabled={isConnecting || isRequestingWallet}
                         variant="outline"
-                        className="w-full py-3 px-4 flex items-center justify-between hover:bg-gray-50 mb-2"
+                        className="w-full py-3 px-4 flex items-center justify-between hover:bg-gray-50 mb-2 text-black"
                       >
                         <div className="flex items-center gap-3">
                           <span className="text-xl">
@@ -226,8 +218,7 @@ export function Navbar() {
                     {/* Cancel Button */}
                     <Button
                       onClick={() => setShowWalletOptions(false)}
-                      variant="ghost"
-                      className="w-full mt-1"
+                      className="w-full mt-1 text-black bg-[#FEABEF] hover:bg-[#ff9be0]"
                     >
                       Cancel
                     </Button>
