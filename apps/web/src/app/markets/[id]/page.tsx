@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { useToast } from "@/hooks/use-toast";
+import { useOutcome } from "@/hooks/use-markets";
 import {
   Drawer,
   DrawerClose,
@@ -202,10 +203,10 @@ export default function MarketDetails() {
   if (!isMiniAppReady || isLoading) {
     return (
       <main className="flex-1">
-        <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <section className="flex items-center justify-center min-h-screen bg-[#111909]">
           <div className="w-full max-w-md mx-auto p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FEABEF] mx-auto mb-4"></div>
+            <p className="text-[#FCFDF5]">
               {!isMiniAppReady ? "Loading..." : "Loading market..."}
             </p>
           </div>
@@ -216,11 +217,11 @@ export default function MarketDetails() {
 
   if (error) {
     return (
-      <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <main className="flex-1 min-h-screen bg-[#111909]">
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="text-center">
-            <p className="text-red-600 mb-4">Error loading market</p>
-            <p className="text-gray-600 mb-4">{error.message}</p>
+            <p className="text-red-400 mb-4">Error loading market</p>
+            <p className="text-[#FCFDF5] mb-4">{error.message}</p>
             <Button onClick={() => router.back()}>Go Back</Button>
           </div>
         </div>
@@ -230,9 +231,9 @@ export default function MarketDetails() {
 
   if (!market) {
     return (
-      <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <main className="flex-1 min-h-screen bg-[#111909]">
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <p className="text-center text-gray-600">Market not found</p>
+          <p className="text-center text-[#FCFDF5]">Market not found</p>
         </div>
       </main>
     );
@@ -241,7 +242,7 @@ export default function MarketDetails() {
   return (
     <main className="flex-1 min-h-screen bg-[#111909]">
       <section
-        className="px-2 pb-2 space-y-2"
+        className="pb-2 space-y-2"
         style={{
           animation: isExiting
             ? "slide-down 0.3s ease-in forwards"
@@ -295,8 +296,17 @@ export default function MarketDetails() {
             <h1 className="text-2xl font-semibold text-black mb-2">
               {market.title.replace("Match: ", "Tennis Match: ")}
             </h1>
+          </div>
 
-            {/* Market metadata */}
+          {/* Volume */}
+          <div>
+            <p className="text-sm text-black">
+              Volume: ${formatCurrency(market.totalVolume)}
+            </p>
+          </div>
+
+          {/* Market metadata */}
+          <div>
             <div className="flex flex-wrap gap-2 text-xs text-gray-600">
               {apiMarket?.createdAt && (
                 <span className="flex items-center">
@@ -318,25 +328,8 @@ export default function MarketDetails() {
             </div>
           </div>
 
-          {/* Judge and Volume */}
+          {/* Winner Display Container */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-gray-300 flex-shrink-0" />
-              <span className="text-sm text-black">
-                Judge:{" "}
-                {judgeAddress
-                  ? formatAddressOrEns(judgeAddress, judgeEnsName, true)
-                  : market.judge}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-black">
-                <DollarSign />
-              </span>
-              <span className="text-sm text-black">
-                Volume: ${formatCurrency(market.totalVolume)}
-              </span>
-            </div>
             {/* Winner Display - Only show if market is RESOLVED */}
             {market.status === "RESOLVED" &&
               market.winningOutcome !== undefined && (

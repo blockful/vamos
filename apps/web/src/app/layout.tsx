@@ -51,7 +51,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="relative flex min-h-screen flex-col items-center">
+        <div className="relative flex min-h-screen flex-col items-center px-2">
           <Providers>
             <ScrollToTop />
             <Navbar />

@@ -120,7 +120,8 @@ module.exports = {
   			'slide-in-from-bottom': 'slide-in-from-bottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
   			'slide-out-to-bottom': 'slide-out-to-bottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
   			'slide-in-from-right': 'slide-in-from-right 0.6s ease-in-out',
-  			'slide-out-to-right': 'slide-out-to-right 0.6s ease-in-out'
+  			'slide-out-to-right': 'slide-out-to-right 0.6s ease-in-out',
+  			'fade-in-up': 'fade-in-up 0.4s ease-out'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

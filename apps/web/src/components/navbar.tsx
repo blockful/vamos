@@ -153,12 +153,12 @@ export function Navbar() {
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [isOpen]);
 
   return (
-    <header className="fixed top-2 left-1/2 -translate-x-1/2 z-50 bg-[#FEABEF] rounded-2xl mb-2 w-[calc(100%-1rem)] max-w-[632px]">
+    <header className="fixed top-2 left-1/2 -translate-x-1/2 z-50 bg-[#FEABEF] rounded-2xl mb-2 w-[calc(100%-1rem)] max-w-[600px]">
       <div className="flex h-20 items-center justify-between px-6">
         {/* Left side - Logo */}
         <button

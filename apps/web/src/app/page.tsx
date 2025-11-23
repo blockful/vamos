@@ -195,7 +195,7 @@ export default function Home() {
   return (
     <main className="flex-1 min-h-screen bg-[#111909]">
       {/* Markets List */}
-      <section className="px-2 pb-24">
+      <section className="pb-24">
         <div className="max-w-2xl mx-auto space-y-2">
           {markets.length === 0 ? (
             <div className="text-center py-12">
@@ -245,7 +245,7 @@ export default function Home() {
                 </div>
                 {/* Title and Volume */}
                 <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-black mb-1">
+                  <h3 className="text-lg font-semibold text-black mb-1 mt-3">
                     {market.title}
                   </h3>
                   <p className="text-sm text-gray-600">
@@ -456,7 +456,7 @@ export default function Home() {
                     }}
                     className={`flex-1 !border-2 ${
                       option.trim() === ""
-                        ? "!border-red-500"
+                        ? "!border-[#111909]"
                         : "!border-[#111909]"
                     }`}
                   />
