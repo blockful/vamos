@@ -1,134 +1,145 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
-import { useEffect, useState } from "react";
-import { useAccount, useConnect } from "wagmi";
-import { Button } from "@/components/ui/button";
-import Image from "next/image";
+import { useState } from "react";
+import { useFormik } from "formik";
 import { useRouter } from "next/navigation";
-import { sdk } from "@farcaster/frame-sdk";
-import type { Connector } from "wagmi";
+import { Plus, X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { useCreateMarket } from "@/hooks/use-vamos-contract";
+import { useAccount } from "wagmi";
+import { isAddress } from "viem";
+import { useMarkets, transformMarketForUI } from "@/hooks/use-markets";
 
-export default function Home() {
-  const { context, isMiniAppReady } = useMiniApp();
+export default function Markets() {
+  const { isMiniAppReady } = useMiniApp();
+  const { address } = useAccount();
   const router = useRouter();
-  const [isRequestingWallet, setIsRequestingWallet] = useState(false);
-  const [showWalletOptions, setShowWalletOptions] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formError, setFormError] = useState<string>("");
 
-  // Wallet connection hooks
-  const { address, isConnected, isConnecting } = useAccount();
-  const { connect, connectors } = useConnect();
+  // Fetch markets from API
+  const {
+    data: apiMarkets,
+    isLoading: isLoadingMarkets,
+    error: marketsError,
+    refetch,
+  } = useMarkets();
 
-  // Auto-connect wallet when miniapp is ready (only once)
-  // Only auto-connect Farcaster if in Farcaster context
-  // useEffect(() => {
-  //   if (
-  //     isMiniAppReady &&
-  //     !isConnected &&
-  //     !isConnecting &&
-  //     !hasAttemptedAutoConnect &&
-  //     connectors.length > 0 &&
-  //     context?.client // Only auto-connect if in Farcaster
-  //   ) {
-  //     setHasAttemptedAutoConnect(true);
-  //     const walletConnector = connectors.find((c) => c.id === "farcaster");
-  //     if (walletConnector) {
-  //       connect({ connector: walletConnector });
-  //     }
-  //   }
-  // }, [
-  //   isMiniAppReady,
-  //   isConnected,
-  //   isConnecting,
-  //   hasAttemptedAutoConnect,
-  //   connectors,
-  //   connect,
-  //   context,
-  // ]);
+  const {
+    createMarket,
+    isPending,
+    isConfirming,
+    isConfirmed,
+    error: contractError,
+    hash,
+  } = useCreateMarket();
 
-  // Redirect to markets when connected
-  useEffect(() => {
-    if (isConnected) {
-      router.push("/markets");
-    }
-  }, [isConnected, router]);
+  // Transform API markets to UI format
+  const markets = apiMarkets?.map(transformMarketForUI) || [];
 
-  // Extract user data from context
-  const user = context?.user;
-  const displayName = user?.displayName || user?.username || "User";
-  const pfpUrl = user?.pfpUrl;
+  // Formik form
+  const formik = useFormik({
+    initialValues: {
+      title: "",
+      description: "",
+      judge: "",
+      options: ["", ""], // Array de strings para as opções
+    },
+    onSubmit: async (values) => {
+      try {
+        // Clear previous errors
+        setFormError("");
 
-  // Function to request wallet access
-  const handleConnectWallet = () => {
-    // Show wallet options if multiple connectors available
-    setShowWalletOptions(true);
-  };
+        // Determine judge address
+        const judgeAddress =
+          values.judge ||
+          address ||
+          "0x0000000000000000000000000000000000000000";
 
-  // Function to connect with specific connector
-  const handleConnectorClick = async (connector: Connector) => {
-    try {
-      setIsRequestingWallet(true);
-      setShowWalletOptions(false);
+        // Validate if it's a valid address
+        if (!isAddress(judgeAddress)) {
+          setFormError("Invalid judge address");
+          return;
+        }
 
-      // If Farcaster connector, request wallet access first
-      if (connector.id === "farcaster") {
-        const result = await sdk.wallet.ethProvider.request({
-          method: "eth_requestAccounts",
-        });
-        console.log("Farcaster wallet access granted:", result);
+        // Filter empty options
+        const validOptions = values.options.filter((opt) => opt.trim() !== "");
+
+        if (validOptions.length < 2) {
+          setFormError("You need at least 2 valid options");
+          return;
+        }
+
+        await createMarket(
+          values.title, // question
+          judgeAddress, // judge (now a valid Address)
+          validOptions // outcomes
+        );
+
+        // Refetch markets after creating a new one
+        await refetch();
+
+        // Close modal and reset form
+        setIsModalOpen(false);
+        formik.resetForm();
+      } catch (error) {
+        console.error("Error creating market:", error);
       }
+    },
+  });
 
-      // Connect with selected connector
-      connect({ connector });
-    } catch (error) {
-      console.error("Error connecting wallet:", error);
-      setShowWalletOptions(true); // Show options again on error
-    } finally {
-      setIsRequestingWallet(false);
+  // Functions to add/remove options
+  const addOption = () => {
+    formik.setFieldValue("options", [...formik.values.options, ""]);
+  };
+
+  const removeOption = (index: number) => {
+    if (formik.values.options.length > 2) {
+      const newOptions = formik.values.options.filter((_, i) => i !== index);
+      formik.setFieldValue("options", newOptions);
     }
   };
 
-  // Get display name for connector
-  const getConnectorName = (connector: Connector) => {
-    if (connector.id === "farcaster") return "Farcaster Wallet";
-    if (connector.id === "injected") {
-      // Try to detect which injected wallet
-      if (typeof window !== "undefined") {
-        if ((window as any).ethereum?.isMetaMask) return "MetaMask";
-        if ((window as any).ethereum?.isCoinbaseWallet)
-          return "Coinbase Wallet";
-        if ((window as any).ethereum?.isRabby) return "Rabby Wallet";
-      }
-      return "Browser Wallet";
-    }
-    return connector.name;
-  };
-
-  // Get icon for connector
-  const getConnectorIcon = (connector: Connector) => {
-    if (connector.id === "farcaster") return "🟣";
-    if (connector.id === "injected") {
-      if (typeof window !== "undefined") {
-        if ((window as any).ethereum?.isMetaMask) return "🦊";
-        if ((window as any).ethereum?.isCoinbaseWallet) return "💙";
-      }
-      return "💳";
-    }
-    return "🔗";
-  };
-
-  // Format wallet address to show first 6 and last 4 characters
-  const formatAddress = (address: string) => {
-    if (!address || address.length < 10) return address;
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
-  if (!isMiniAppReady) {
+  if (!isMiniAppReady || isLoadingMarkets) {
     return (
       <main className="flex-1">
-        <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <section className="flex items-center justify-center min-h-screen bg-[#111909]">
           <div className="w-full max-w-md mx-auto p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FEABEF] mx-auto mb-4"></div>
+            <p className="text-[#FCFDF5]">
+              {!isMiniAppReady ? "Loading..." : "Loading markets..."}
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  // Show error state if markets failed to load
+  if (marketsError) {
+    return (
+      <main className="flex-1 min-h-screen bg-[#111909]">
+        <section className="flex items-center justify-center min-h-screen">
+          <div className="w-full max-w-md mx-auto p-8 text-center">
+            <p className="text-red-400 mb-4">Error loading markets</p>
+            <p className="text-[#FCFDF5] text-sm mb-4">
+              {marketsError.message}
+            </p>
+            <Button
+              onClick={() => refetch()}
+              className="bg-[#FEABEF] hover:bg-[#ff9be0] text-black"
+            >
+              Try Again
+            </Button>
           </div>
         </section>
       </main>
@@ -136,104 +147,245 @@ export default function Home() {
   }
 
   return (
-    <main className="flex-1">
-      <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="w-full max-w-md mx-auto p-8">
-          <div className="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center">
-            {/* Profile Picture */}
-            <div className="w-32 h-32 mb-6 rounded-full overflow-hidden border-4 border-gray-200">
-              {pfpUrl ? (
-                <Image
-                  src={pfpUrl}
-                  alt="Profile"
-                  width={128}
-                  height={128}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
-                  <span className="text-white text-4xl font-bold">
-                    {displayName.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              )}
+    <main className="flex-1 min-h-screen bg-[#111909]">
+      {/* Markets List */}
+      <section className="px-4 pb-24">
+        <div className="max-w-2xl mx-auto space-y-4">
+          {markets.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-[#FCFDF5] text-lg mb-2">No markets yet</p>
+              <p className="text-gray-400 text-sm">
+                Create the first prediction market!
+              </p>
             </div>
-
-            {/* Connect Wallet Section */}
-            {!showWalletOptions ? (
-              <Button
-                onClick={handleConnectWallet}
-                disabled={isConnected || isConnecting || isRequestingWallet}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-4 px-6"
+          ) : (
+            markets.map((market) => (
+              <div
+                key={market.id}
+                className={`rounded-2xl p-5 hover:shadow-lg transition-all cursor-pointer active:scale-95 ${
+                  market.status === "BETS OPEN" ? "bg-[#FCFDF5]" : "bg-gray-100"
+                }`}
+                onClick={() => router.push(`/markets/${market.id}`)}
               >
-                {isConnecting || isRequestingWallet ? (
-                  <div className="flex items-center gap-2 justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Connecting...</span>
-                  </div>
-                ) : isConnected ? (
-                  <div className="flex items-center gap-2 justify-center">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#A4D18E" }}></div>
-                    <span>Connected</span>
-                  </div>
-                ) : (
-                  "Connect Wallet"
-                )}
-              </Button>
-            ) : (
-              <div className="w-full space-y-3">
-                <p className="text-sm text-gray-600 text-center mb-2">
-                  Choose a wallet to connect
-                </p>
-
-                {/* Wallet Options */}
-                {connectors.map((connector) => (
-                  <Button
-                    key={connector.id}
-                    onClick={() => handleConnectorClick(connector)}
-                    disabled={isConnecting || isRequestingWallet}
-                    variant="outline"
-                    className="w-full py-4 px-6 flex items-center justify-between hover:bg-gray-50"
+                {/* Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-2xl ${
+                      market.status === "BETS OPEN"
+                        ? "bg-[#FEABEF]"
+                        : "bg-gray-400"
+                    }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">
-                        {getConnectorIcon(connector)}
-                      </span>
-                      <span className="font-medium">
-                        {getConnectorName(connector)}
-                      </span>
-                    </div>
-                    {isConnecting && (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    {market.icon}
+                  </div>
+                  <div
+                    className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-2 ${
+                      market.status === "BETS OPEN"
+                        ? "bg-[#FEABEF] bg-opacity-40 text-[#CC66BA]"
+                        : "bg-gray-300 text-gray-600"
+                    }`}
+                  >
+                    {market.status === "BETS OPEN" && (
+                      <div
+                        className="w-2 h-2 rounded-full bg-[#CC66BA]"
+                        style={{
+                          animation: "pulse-dot 2s infinite",
+                          boxShadow: "0 0 0 0 rgba(204, 102, 186, 0.7)",
+                        }}
+                      />
                     )}
-                  </Button>
-                ))}
+                    {market.status}
+                  </div>
+                </div>
 
-                {/* Cancel Button */}
-                <Button
-                  onClick={() => setShowWalletOptions(false)}
-                  variant="ghost"
-                  className="w-full mt-2"
-                >
-                  Cancel
-                </Button>
-              </div>
-            )}
-
-            {/* Wallet Address (shown when connected) */}
-            {isConnected && address && (
-              <div className="mt-4 w-full">
-                <div className="bg-gray-50 rounded-lg p-4 text-center">
-                  <p className="text-xs text-gray-500 mb-1">Wallet Address</p>
-                  <p className="text-sm font-mono text-gray-700">
-                    {formatAddress(address)}
+                {/* Title and Volume */}
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-black mb-1">
+                    {market.title}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Volume: {market.volume}
                   </p>
                 </div>
+
+                {/* Options - Bar Chart Style */}
+                <div className="space-y-2">
+                  {market.options.map((option, index) => (
+                    <div
+                      key={index}
+                      className="relative h-8 bg-gray-200 rounded-full overflow-hidden"
+                    >
+                      <div
+                        className={`h-full ${
+                          option.color
+                        } flex items-center px-3 transition-all duration-300 ${
+                          market.status === "BETS CLOSED" ? "opacity-70" : ""
+                        }`}
+                        style={{ width: `${option.percentage}%` }}
+                      />
+                      <div className="absolute inset-0 flex items-center px-3 justify-between pointer-events-none">
+                        <span className="text-sm font-normal text-black">
+                          {option.name}
+                        </span>
+                        <span className="text-sm font-normal text-black">
+                          {option.percentage}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
+            ))
+          )}
         </div>
       </section>
+
+      {/* Floating Add Button */}
+      <Button
+        size="icon"
+        className="fixed bottom-8 right-8 w-16 h-16 bg-[#FEABEF] hover:bg-[#ff9be0] text-black rounded-full shadow-2xl transition-all hover:scale-110 z-50"
+        onClick={() => setIsModalOpen(true)}
+      >
+        <Plus className="h-8 w-8" />
+      </Button>
+
+      {/* Create Market Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#FCFDF5]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-black">
+              Create bet
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={formik.handleSubmit} className="space-y-6 mt-6">
+            {/* Title */}
+            <div className="space-y-2">
+              <Label htmlFor="title" className="text-sm font-medium text-black">
+                Title
+              </Label>
+              <Input
+                id="title"
+                name="title"
+                placeholder="Enter market title"
+                value={formik.values.title}
+                onChange={formik.handleChange}
+                className="w-full border-gray-300"
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="description"
+                className="text-sm font-medium text-black"
+              >
+                Description
+              </Label>
+              <Textarea
+                id="description"
+                name="description"
+                placeholder="Enter market description"
+                value={formik.values.description}
+                onChange={formik.handleChange}
+                className="w-full min-h-[100px] border-gray-300"
+              />
+            </div>
+
+            {/* Judge */}
+            <div className="space-y-2">
+              <Label htmlFor="judge" className="text-sm font-medium text-black">
+                Judge
+              </Label>
+              <Input
+                id="judge"
+                name="judge"
+                placeholder="Enter judge name or address"
+                value={formik.values.judge}
+                onChange={formik.handleChange}
+                className="w-full border-gray-300"
+              />
+            </div>
+
+            {/* Options - Dynamic */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Options</Label>
+                <Button
+                  type="button"
+                  onClick={addOption}
+                  size="sm"
+                  variant="outline"
+                  className="text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Option
+                </Button>
+              </div>
+
+              {formik.values.options.map((option, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                    value={option}
+                    onChange={(e) => {
+                      const newOptions = [...formik.values.options];
+                      newOptions[index] = e.target.value;
+                      formik.setFieldValue("options", newOptions);
+                    }}
+                    className="flex-1"
+                  />
+                  {formik.values.options.length > 2 && (
+                    <Button
+                      type="button"
+                      onClick={() => removeOption(index)}
+                      size="icon"
+                      variant="ghost"
+                      className="h-10 w-10 text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              disabled={isPending || isConfirming}
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isPending
+                ? "Awaiting approval..."
+                : isConfirming
+                ? "Creating market..."
+                : "Create"}
+            </Button>
+
+            {/* Form validation error */}
+            {formError && (
+              <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded-md border border-red-200">
+                ⚠️ {formError}
+              </p>
+            )}
+
+            {/* Contract error message */}
+            {contractError && (
+              <p className="text-sm text-red-600 mt-2 bg-red-50 p-3 rounded-md border border-red-200">
+                ⚠️ Error: {contractError.message}
+              </p>
+            )}
+
+            {/* Success message */}
+            {isConfirmed && hash && (
+              <p className="text-sm text-green-600 mt-2 bg-green-50 p-3 rounded-md border border-green-200">
+                ✓ Market created successfully! TX: {hash.slice(0, 10)}...
+              </p>
+            )}
+          </form>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

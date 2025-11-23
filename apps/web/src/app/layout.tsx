@@ -1,11 +1,11 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import './globals.css';
+import "./globals.css";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 
-import { Navbar } from '@/components/navbar';
-import Providers from "@/components/providers"
+import { Navbar } from "@/components/navbar";
+import Providers from "@/components/providers";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] });
 
 const appUrl = process.env.NEXT_PUBLIC_URL || "http://localhost:3000";
 
@@ -26,14 +26,14 @@ const frame = {
 };
 
 export const metadata: Metadata = {
-  title: 'Vamos.Fun',
-  description: 'Vamos Predictable Market',
+  title: "Vamos.Fun",
+  description: "Vamos Predictable Market",
   icons: {
-    icon: '/icon.png',
+    icon: "/icon.png",
   },
   openGraph: {
-    title: 'Vamos.Fun',
-    description: 'Vamos Predictable Market',
+    title: "Vamos.Fun",
+    description: "Vamos Predictable Market",
     images: [`${appUrl}/opengraph-image.png`],
   },
   other: {
@@ -49,13 +49,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {/* Navbar is included on all pages */}
         <div className="relative flex min-h-screen flex-col">
           <Providers>
             <Navbar />
-            <main className="flex-1 pt-24">
-              {children}
-            </main>
+            <main className="flex-1 pt-24">{children}</main>
           </Providers>
         </div>
       </body>
