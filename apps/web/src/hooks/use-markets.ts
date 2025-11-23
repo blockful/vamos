@@ -198,7 +198,7 @@ export function useMarkets(chainId?: number) {
  * @param marketId - The composite ID of the market (chainId-marketId)
  * @param userAddress - Optional user address to filter bets for "Your bet" display
  */
-export function useMarket(marketId: string, userAddress?: string) {
+export function useMarket(marketId: string, chainId: number, userAddress?: string) {
     return useQuery({
         queryKey: ["market", marketId, userAddress],
         queryFn: async (): Promise<Market | null> => {
@@ -246,7 +246,7 @@ export function useMarket(marketId: string, userAddress?: string) {
                 body: JSON.stringify({
                     query: MARKET_QUERY,
                     variables: {
-                        id: marketId,
+                        id: `${chainId}-${marketId}`,
                         userAddress: userAddress?.toLowerCase() // Normalize address to lowercase
                     },
                 }),

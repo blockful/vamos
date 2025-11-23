@@ -60,7 +60,7 @@ export default function MarketDetails() {
     isLoading,
     error,
     refetch,
-  } = useMarket(marketId.toString(), address);
+  } = useMarket(marketId.toString(), chain!.id, address);
 
   // Pause market hook
   const {
