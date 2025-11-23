@@ -14,7 +14,10 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { useState, useEffect, useMemo } from "react";
-import { usePlacePrediction, useTokenApproval } from "@/hooks/use-vamos-contract";
+import {
+  usePlacePrediction,
+  useTokenApproval,
+} from "@/hooks/use-vamos-contract";
 import { useMarket, transformOutcomeForUI } from "@/hooks/use-markets";
 import { parseUnits } from "viem";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
@@ -30,6 +33,7 @@ export default function OptionDetails() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [needsApproval, setNeedsApproval] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const { placePrediction, isPending, isConfirming, isConfirmed, error } =
     usePlacePrediction();
@@ -75,12 +79,13 @@ export default function OptionDetails() {
       // After approval, wait a moment for the blockchain state to update, then refetch and place prediction
       const placePredictionAfterApproval = async () => {
         try {
+          setIsProcessing(true);
           // Refetch allowance and wait for it
           await refetchAllowance();
-          
+
           const amountInWei = parseUnits(betAmount.toString(), 18);
           setNeedsApproval(false);
-          
+
           // Now place the prediction
           await placePrediction(
             BigInt(marketId),
@@ -90,11 +95,21 @@ export default function OptionDetails() {
         } catch (err) {
           console.error("Error placing prediction after approval:", err);
           setNeedsApproval(false); // Reset state on error
+        } finally {
+          setIsProcessing(false);
         }
       };
       placePredictionAfterApproval();
     }
-  }, [isApproveConfirmed, needsApproval, refetchAllowance, betAmount, marketId, optionIndex, placePrediction]);
+  }, [
+    isApproveConfirmed,
+    needsApproval,
+    refetchAllowance,
+    betAmount,
+    marketId,
+    optionIndex,
+    placePrediction,
+  ]);
 
   const handleIncrement = () => setBetAmount((prev) => prev + 1);
   const handleDecrement = () => setBetAmount((prev) => Math.max(1, prev - 1));
@@ -123,6 +138,11 @@ export default function OptionDetails() {
   };
 
   const handleConfirmBet = async () => {
+    // Prevent multiple clicks
+    if (isProcessing) {
+      return;
+    }
+
     // Ensure minimum value before confirming
     if (betAmount < 1) {
       setBetAmount(1);
@@ -130,16 +150,20 @@ export default function OptionDetails() {
     }
 
     try {
+      setIsProcessing(true);
+
       // Convert bet amount to token units (assuming 18 decimals for ERC20)
       const amountInWei = parseUnits(betAmount.toString(), 18);
 
       // If we're in approval flow, wait for it to complete
       if (needsApproval && (isApprovePending || isApproveConfirming)) {
+        setIsProcessing(false);
         return;
       }
 
       // If approval was just confirmed, let the useEffect handle the prediction
       if (needsApproval && isApproveConfirmed) {
+        setIsProcessing(false);
         return;
       }
 
@@ -157,14 +181,12 @@ export default function OptionDetails() {
 
       // If already approved, place prediction
       setNeedsApproval(false);
-      await placePrediction(
-        BigInt(marketId),
-        BigInt(optionIndex),
-        amountInWei
-      );
+      await placePrediction(BigInt(marketId), BigInt(optionIndex), amountInWei);
     } catch (err) {
       console.error("Error placing prediction:", err);
       setNeedsApproval(false); // Reset state on error
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -446,6 +468,7 @@ export default function OptionDetails() {
                         className="w-full text-white font-bold py-6 text-lg rounded-2xl"
                         style={{ backgroundColor: "#A4D18E" }}
                         disabled={
+                          isProcessing ||
                           isPending ||
                           isConfirming ||
                           isApprovePending ||
@@ -457,6 +480,8 @@ export default function OptionDetails() {
                           ? "Confirming Bet..."
                           : isApprovePending || isApproveConfirming
                           ? "Approving Tokens..."
+                          : isProcessing
+                          ? "Processing..."
                           : needsApproval && !isApproveConfirmed
                           ? "Approve Tokens"
                           : "Confirm bet"}
