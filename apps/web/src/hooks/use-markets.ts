@@ -97,10 +97,9 @@ export function useMarkets() {
             const data: { data: MarketsResponse } = await response.json();
             return data.data.marketss.items;
         },
-        // Refetch every 30 seconds to get updates
-        refetchInterval: 30000,
-        // Keep previous data while refetching
-        staleTime: 10000,
+        // Only refetch manually or on mount
+        staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+        gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     });
 }
 
@@ -162,10 +161,9 @@ export function useMarket(marketId: string) {
             const data: { data: { markets: Market } } = await response.json();
             return data.data.markets || null;
         },
-        // Refetch every 30 seconds to get updates
-        refetchInterval: 30000,
-        // Keep previous data while refetching
-        staleTime: 10000,
+        // Only refetch manually or on mount
+        staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
+        gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
         enabled: !!marketId, // Only run if marketId exists
     });
 }
@@ -217,10 +215,9 @@ export function useOutcome(outcomeId: string) {
             const data: { data: { outcomes: Outcome } } = await response.json();
             return data.data.outcomes || null;
         },
-        // Refetch every 30 seconds to get updates
-        refetchInterval: 30000,
-        // Keep previous data while refetching
-        staleTime: 10000,
+        // Only refetch manually or on mount
+        staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
+        gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
         enabled: !!outcomeId, // Only run if outcomeId exists
     });
 }
