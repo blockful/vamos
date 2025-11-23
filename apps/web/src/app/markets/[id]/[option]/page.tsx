@@ -22,11 +22,14 @@ import { useMarket, transformOutcomeForUI } from "@/hooks/use-markets";
 import { parseUnits } from "viem";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
 import { formatCurrency } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { getFirstSentence } from "@/app/helpers/getFirstSentence";
 
 export default function OptionDetails() {
   const { isMiniAppReady } = useMiniApp();
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const marketId = params.id as string;
   const optionIndex = parseInt(params.option as string);
   const [betAmount, setBetAmount] = useState(30);
@@ -67,11 +70,36 @@ export default function OptionDetails() {
   // Fetch ENS names for all bet addresses
   const { data: ensNames } = useEnsNames(betAddresses);
 
+  // Show error toast when errors occur
+  useEffect(() => {
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Transaction Error",
+        description: getFirstSentence(error.message),
+      });
+    }
+  }, [error, toast]);
+
+  useEffect(() => {
+    if (approveError) {
+      toast({
+        variant: "destructive",
+        title: "Approval Error",
+        description: getFirstSentence(approveError.message),
+      });
+    }
+  }, [approveError, toast]);
+
   useEffect(() => {
     if (isConfirmed) {
       setShowConfirmation(true);
+      toast({
+        title: "Bet Placed Successfully!",
+        description: `Your bet of $${betAmount} has been confirmed.`,
+      });
     }
-  }, [isConfirmed]);
+  }, [isConfirmed, betAmount, toast]);
 
   // Refetch allowance and proceed with prediction after approval
   useEffect(() => {
@@ -95,6 +123,12 @@ export default function OptionDetails() {
         } catch (err) {
           console.error("Error placing prediction after approval:", err);
           setNeedsApproval(false); // Reset state on error
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description:
+              "Failed to place prediction after approval. Please try again.",
+          });
         } finally {
           setIsProcessing(false);
         }
@@ -109,6 +143,7 @@ export default function OptionDetails() {
     marketId,
     optionIndex,
     placePrediction,
+    toast,
   ]);
 
   const handleIncrement = () => setBetAmount((prev) => prev + 1);
@@ -185,6 +220,14 @@ export default function OptionDetails() {
     } catch (err) {
       console.error("Error placing prediction:", err);
       setNeedsApproval(false); // Reset state on error
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          err instanceof Error
+            ? err.message
+            : "Failed to place bet. Please try again.",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -486,16 +529,6 @@ export default function OptionDetails() {
                           ? "Approve Tokens"
                           : "Confirm bet"}
                       </Button>
-                      {approveError && (
-                        <p className="text-sm text-red-500 text-center mt-2">
-                          Approval Error: {approveError.message}
-                        </p>
-                      )}
-                      {error && (
-                        <p className="text-sm text-red-500 text-center mt-2">
-                          Error: {error.message}
-                        </p>
-                      )}
                     </DrawerFooter>
                   </>
                 ) : (
