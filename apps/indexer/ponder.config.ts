@@ -3,6 +3,10 @@ import { createConfig } from "ponder";
 import { VamosAbi } from "./abis/VamosAbi";
 
 export default createConfig({
+  database: { 
+    kind: "postgres", 
+    connectionString: process.env.DATABASE_URL, 
+  },
   chains: {
     base: {
       id: 8453,
