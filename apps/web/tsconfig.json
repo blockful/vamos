@@ -6,6 +6,7 @@
         "name": "next"
       }
     ],
+    "module": "NodeNext",
     "moduleResolution": "nodenext",
     "baseUrl": ".",
     "paths": {
