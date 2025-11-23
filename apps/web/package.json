@@ -10,7 +10,6 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@coinbase/onchainkit": "^1.1.2",
     "@farcaster/frame-core": "latest",
     "@farcaster/frame-sdk": "^0.0.61",
     "@farcaster/miniapp-wagmi-connector": "latest",
