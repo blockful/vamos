@@ -17,6 +17,7 @@
     "web:build": "pnpm --filter @vamos/web build",
     "web:start": "pnpm --filter @vamos/web start",
     "web:lint": "pnpm --filter @vamos/web lint",
+    "wallet:start": "dotenv -- pnpm --filter @vamos/server-wallet start",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix"
   },
