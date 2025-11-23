@@ -190,7 +190,7 @@ contract VamosTest is Test {
         // Claim winnings
         uint256 user1BalanceBefore = token.balanceOf(user1);
         vm.prank(user1);
-        market.claimWinnings(marketId);
+        market.claim(marketId);
         uint256 user1Received = token.balanceOf(user1) - user1BalanceBefore;
         
         assertEq(user1Received, 95 ether, "User1 should receive 95 tokens");
@@ -237,7 +237,7 @@ contract VamosTest is Test {
         // Claim winnings
         uint256 user1BalanceBefore = token.balanceOf(user1);
         vm.prank(user1);
-        market.claimWinnings(marketId);
+        market.claim(marketId);
         uint256 user1Received = token.balanceOf(user1) - user1BalanceBefore;
         
         // User1 should receive pool after fees
@@ -383,7 +383,7 @@ contract VamosTest is Test {
         // User1 should get entire poolAfterFees (285 ether) since they're the only winner
         uint256 user1BalanceBefore = token.balanceOf(user1);
         vm.prank(user1);
-        market.claimWinnings(marketId);
+        market.claim(marketId);
         uint256 user1Received = token.balanceOf(user1) - user1BalanceBefore;
         
         assertEq(user1Received, 285 ether, "User1 should receive pool after fees");
@@ -461,12 +461,12 @@ contract VamosTest is Test {
         // Users should be able to claim refunds
         uint256 user1BalanceBefore = token.balanceOf(user1);
         vm.prank(user1);
-        market.claimRefund(marketId);
+        market.claim(marketId);
         assertEq(token.balanceOf(user1) - user1BalanceBefore, 100 ether, "User1 should get refund");
         
         uint256 user2BalanceBefore = token.balanceOf(user2);
         vm.prank(user2);
-        market.claimRefund(marketId);
+        market.claim(marketId);
         assertEq(token.balanceOf(user2) - user2BalanceBefore, 50 ether, "User2 should get refund");
     }
     
@@ -490,36 +490,12 @@ contract VamosTest is Test {
         
         // Claim refund
         vm.prank(user1);
-        market.claimRefund(marketId);
+        market.claim(marketId);
         
         // Try to claim again
         vm.prank(user1);
         vm.expectRevert();
-        market.claimRefund(marketId);
-    }
-    
-    function testCannotClaimRefundIfNotNoWinnerMarket() public {
-        // Normal market with winners
-        vm.startPrank(creator);
-        string[] memory outcomes = new string[](2);
-        outcomes[0] = "Yes";
-        outcomes[1] = "No";
-        uint256 marketId = market.createMarket("Test?", judge, outcomes);
-        vm.stopPrank();
-        
-        vm.startPrank(user1);
-        token.approve(address(market), 100 ether);
-        market.placePrediction(marketId, 0, 100 ether);
-        vm.stopPrank();
-        
-        // Resolve to outcome 0 (has winner)
-        vm.prank(judge);
-        market.resolveMarket(marketId, 0);
-        
-        // Try to claim refund - should fail
-        vm.prank(user1);
-        vm.expectRevert();
-        market.claimRefund(marketId);
+        market.claim(marketId);
     }
     
     function testMultipleWinnersSplitPoolAfterFees() public {
@@ -555,12 +531,12 @@ contract VamosTest is Test {
         
         uint256 user1BalanceBefore = token.balanceOf(user1);
         vm.prank(user1);
-        market.claimWinnings(marketId);
+        market.claim(marketId);
         assertEq(token.balanceOf(user1) - user1BalanceBefore, 95 ether, "User1 proportional share");
         
         uint256 user2BalanceBefore = token.balanceOf(user2);
         vm.prank(user2);
-        market.claimWinnings(marketId);
+        market.claim(marketId);
         assertEq(token.balanceOf(user2) - user2BalanceBefore, 190 ether, "User2 proportional share");
     }
     
@@ -785,7 +761,7 @@ contract VamosTest is Test {
         // User2 gets all of it since they're the only one on outcome 1
         uint256 user2BalanceBefore = token.balanceOf(user2);
         vm.prank(user2);
-        market.claimWinnings(marketId);
+        market.claim(marketId);
         uint256 user2Received = token.balanceOf(user2) - user2BalanceBefore;
         
         assertEq(user2Received, 142.5 ether, "User2 should receive entire pool after fees");
@@ -793,7 +769,417 @@ contract VamosTest is Test {
         // User1 should have no winnings on outcome 1
         vm.prank(user1);
         vm.expectRevert();
-        market.claimWinnings(marketId);
+        market.claim(marketId);
+    }
+    
+    // ============================================
+    // Unified Claim Tests
+    // ============================================
+    
+    function testUnifiedClaimForWinnings() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
+        vm.stopPrank();
+        
+        // User1 predicts on outcome 0
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // Resolve market
+        vm.prank(judge);
+        market.resolveMarket(marketId, 0);
+        
+        // User claims using unified claim() function
+        uint256 balanceBefore = token.balanceOf(user1);
+        vm.prank(user1);
+        market.claim(marketId);
+        
+        // Should receive winnings after fees
+        assertGt(token.balanceOf(user1) - balanceBefore, 0, "Should receive winnings");
+    }
+    
+    function testUnifiedClaimForRefund() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
+        vm.stopPrank();
+        
+        // User1 predicts on outcome 0
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // Resolve to outcome 1 (no winners)
+        vm.prank(judge);
+        market.resolveMarket(marketId, 1);
+        
+        // User claims using same unified claim() function - gets refund
+        uint256 balanceBefore = token.balanceOf(user1);
+        vm.prank(user1);
+        market.claim(marketId);
+        
+        assertEq(token.balanceOf(user1) - balanceBefore, 100 ether, "Should receive full refund");
+    }
+    
+    function testUnifiedClaimHandlesBothCases() public {
+        // Create two markets
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId1 = market.createMarket("Market 1?", judge, outcomes);
+        uint256 marketId2 = market.createMarket("Market 2?", judge, outcomes);
+        vm.stopPrank();
+        
+        // User1 predicts on both markets
+        vm.startPrank(user1);
+        token.approve(address(market), 200 ether);
+        market.placePrediction(marketId1, 0, 100 ether);
+        market.placePrediction(marketId2, 0, 100 ether);
+        vm.stopPrank();
+        
+        // Market 1: User wins
+        vm.prank(judge);
+        market.resolveMarket(marketId1, 0);
+        
+        // Market 2: No winners (refund)
+        vm.prank(judge);
+        market.resolveMarket(marketId2, 1);
+        
+        // Claim from both using same function
+        uint256 balanceBefore = token.balanceOf(user1);
+        vm.prank(user1);
+        market.claim(marketId1); // Winnings
+        
+        vm.prank(user1);
+        market.claim(marketId2); // Refund
+        
+        // Should receive winnings from market1 and refund from market2
+        assertGt(token.balanceOf(user1) - balanceBefore, 100 ether, "Should receive at least refund amount");
+    }
+    
+    // ============================================
+    // Unified Distribution Tests
+    // ============================================
+    
+    function testUnifiedDistributeForWinnings() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
+        vm.stopPrank();
+        
+        // Two users predict on outcome 0
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(user2);
+        token.approve(address(market), 200 ether);
+        market.placePrediction(marketId, 0, 200 ether);
+        vm.stopPrank();
+        
+        // Resolve market
+        vm.prank(judge);
+        market.resolveMarket(marketId, 0);
+        
+        // Anyone can trigger distribution
+        uint256 user1BalanceBefore = token.balanceOf(user1);
+        uint256 user2BalanceBefore = token.balanceOf(user2);
+        
+        uint256 processed = market.distribute(marketId);
+        
+        // Both users should receive their winnings
+        assertGt(token.balanceOf(user1) - user1BalanceBefore, 0, "User1 should receive winnings");
+        assertGt(token.balanceOf(user2) - user2BalanceBefore, 0, "User2 should receive winnings");
+        assertEq(processed, 2, "Should process 2 users");
+    }
+    
+    function testUnifiedDistributeForRefunds() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
+        vm.stopPrank();
+        
+        // User1 predicts on outcome 0, User2 on outcome 1
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(user2);
+        token.approve(address(market), 50 ether);
+        market.placePrediction(marketId, 1, 50 ether);
+        vm.stopPrank();
+        
+        // Resolve to invalid outcome (no predictions on it)
+        // Since we only have 2 outcomes and both have predictions, let's create a 3-outcome market
+        vm.startPrank(creator);
+        string[] memory outcomes3 = new string[](3);
+        outcomes3[0] = "A";
+        outcomes3[1] = "B";
+        outcomes3[2] = "C";
+        uint256 marketId3 = market.createMarket("Test3?", judge, outcomes3);
+        vm.stopPrank();
+        
+        // Predictions on outcomes 0 and 1
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId3, 0, 100 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(user2);
+        token.approve(address(market), 50 ether);
+        market.placePrediction(marketId3, 1, 50 ether);
+        vm.stopPrank();
+        
+        // Resolve to outcome 2 (no winners)
+        vm.prank(judge);
+        market.resolveMarket(marketId3, 2);
+        
+        // Distribute refunds using same function
+        uint256 user1BalanceBefore = token.balanceOf(user1);
+        uint256 user2BalanceBefore = token.balanceOf(user2);
+        
+        uint256 processed = market.distribute(marketId3);
+        
+        // Both should receive refunds
+        assertEq(token.balanceOf(user1) - user1BalanceBefore, 100 ether, "User1 should receive refund");
+        assertEq(token.balanceOf(user2) - user2BalanceBefore, 50 ether, "User2 should receive refund");
+        assertEq(processed, 2, "Should process 2 users");
+    }
+    
+    // ============================================
+    // Legacy Distribution Tests (backward compatibility)
+    // ============================================
+    
+    function testDistributeWinningsBasic() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
+        vm.stopPrank();
+        
+        // User1 places 100 tokens on outcome 0
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // User2 places 200 tokens on outcome 0
+        vm.startPrank(user2);
+        token.approve(address(market), 200 ether);
+        market.placePrediction(marketId, 0, 200 ether);
+        vm.stopPrank();
+        
+        // Resolve market
+        vm.prank(judge);
+        market.resolveMarket(marketId, 0);
+        
+        // Anyone can trigger distribution
+        uint256 user1BalanceBefore = token.balanceOf(user1);
+        uint256 user2BalanceBefore = token.balanceOf(user2);
+        
+        address anyone = address(0x123);
+        vm.prank(anyone);
+        uint256 processed = market.distribute(marketId);
+        
+        // Verify both users received their winnings
+        // Total: 300, Protocol fee: 6 (2%), Creator fee: 9 (3%), Pool after fees: 285
+        // User1: (100/300) * 285 = 95
+        // User2: (200/300) * 285 = 190
+        assertEq(token.balanceOf(user1) - user1BalanceBefore, 95 ether, "User1 should receive proportional winnings");
+        assertEq(token.balanceOf(user2) - user2BalanceBefore, 190 ether, "User2 should receive proportional winnings");
+        assertEq(processed, 2, "Should process 2 users");
+    }
+    
+    function testDistributeWinningsSkipsAlreadyClaimed() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
+        vm.stopPrank();
+        
+        // User1 and User2 predict on outcome 0
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(user2);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // Resolve market
+        vm.prank(judge);
+        market.resolveMarket(marketId, 0);
+        
+        // User1 claims individually
+        vm.prank(user1);
+        market.claim(marketId);
+        
+        // Now distribute to all (should skip user1)
+        uint256 user2BalanceBefore = token.balanceOf(user2);
+        market.distribute(marketId);
+        
+        // User2 should receive their share, user1 should not receive duplicate
+        assertGt(token.balanceOf(user2) - user2BalanceBefore, 0, "User2 should receive winnings");
+    }
+    
+    function testDistributeWithMultipleWinners() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
+        vm.stopPrank();
+        
+        // Multiple users predict on outcome 0
+        address user3 = address(5);
+        address user4 = address(6);
+        token.mint(user3, 1000 ether);
+        token.mint(user4, 1000 ether);
+        
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(user2);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(user3);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(user4);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // Resolve market
+        vm.prank(judge);
+        market.resolveMarket(marketId, 0);
+        
+        // Distribute to all at once using simple distribute()
+        uint256 processed = market.distribute(marketId);
+        assertEq(processed, 4, "Should process all 4 users");
+        
+        // All users should have received their winnings
+        // Total: 400, fees: 20, pool after fees: 380
+        // Each user: (100/400) * 380 = 95
+        assertGt(token.balanceOf(user1), 900 ether, "User1 should have received winnings");
+        assertGt(token.balanceOf(user2), 900 ether, "User2 should have received winnings");
+        assertGt(token.balanceOf(user3), 900 ether, "User3 should have received winnings");
+        assertGt(token.balanceOf(user4), 900 ether, "User4 should have received winnings");
+    }
+    
+    function testDistributeRefundsBasic() public {
+        // Create market with 3 outcomes
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](3);
+        outcomes[0] = "A";
+        outcomes[1] = "B";
+        outcomes[2] = "C";
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
+        vm.stopPrank();
+        
+        // User1 predicts on outcome 0
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // User2 predicts on outcome 1
+        vm.startPrank(user2);
+        token.approve(address(market), 50 ether);
+        market.placePrediction(marketId, 1, 50 ether);
+        vm.stopPrank();
+        
+        // Resolve to outcome 2 (no winners)
+        vm.prank(judge);
+        market.resolveMarket(marketId, 2);
+        
+        // Distribute refunds using unified distribute() - handles all at once
+        uint256 user1BalanceBefore = token.balanceOf(user1);
+        uint256 user2BalanceBefore = token.balanceOf(user2);
+        market.distribute(marketId);
+        assertEq(token.balanceOf(user1) - user1BalanceBefore, 100 ether, "User1 should receive refund");
+        assertEq(token.balanceOf(user2) - user2BalanceBefore, 50 ether, "User2 should receive refund");
+    }
+    
+    function testDistributeRefundsWithMultiplePredictions() public {
+        // Create market with 3 outcomes
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](3);
+        outcomes[0] = "A";
+        outcomes[1] = "B";
+        outcomes[2] = "C";
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
+        vm.stopPrank();
+        
+        // User1 predicts on multiple outcomes
+        vm.startPrank(user1);
+        token.approve(address(market), 150 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        market.placePrediction(marketId, 1, 50 ether);
+        vm.stopPrank();
+        
+        // Resolve to outcome 2 (no winners)
+        vm.prank(judge);
+        market.resolveMarket(marketId, 2);
+        
+        // Distribute refunds using unified function
+        uint256 user1BalanceBefore = token.balanceOf(user1);
+        market.distribute(marketId);
+        
+        // User1 should receive their total predictions (100 + 50 = 150)
+        assertEq(token.balanceOf(user1) - user1BalanceBefore, 150 ether, "User1 should receive full refund");
+    }
+    
+    function testCannotDistributeForUnresolvedMarket() public {
+        // Create market
+        vm.startPrank(creator);
+        string[] memory outcomes = new string[](2);
+        outcomes[0] = "Yes";
+        outcomes[1] = "No";
+        uint256 marketId = market.createMarket("Test?", judge, outcomes);
+        vm.stopPrank();
+        
+        // User1 predicts
+        vm.startPrank(user1);
+        token.approve(address(market), 100 ether);
+        market.placePrediction(marketId, 0, 100 ether);
+        vm.stopPrank();
+        
+        // Try to distribute before resolution - should fail
+        vm.expectRevert();
+        market.distribute(marketId);
     }
 }
 
