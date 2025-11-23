@@ -1,12 +1,14 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Share2,
   ChevronRight,
   ChevronLeft,
   PartyPopperIcon,
   DollarSign,
+  Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -512,7 +514,7 @@ export default function MarketDetails() {
                       <p className="text-lg text-left font-semibold text-black mb-2">
                         {option.name}
                       </p>
-                      {isWinner && <span className="text-2xl">🏆</span>}
+                      {isWinner && <span className="text-base -mt-2">🏆</span>}
                     </div>
                     <div className="flex gap-8">
                       <div>
@@ -532,11 +534,28 @@ export default function MarketDetails() {
                     </div>
                   </div>
 
-                  {/* Chevron button */}
-                  {market.status === "OPEN" && (
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-black flex-shrink-0 ml-4">
-                      <ChevronRight className="h-5 w-5 text-black" />
+                  {/* Winner Capi Image or Chevron button */}
+                  {isWinner ? (
+                    <div
+                      className="flex items-center justify-center flex-shrink-0 ml-4 absolute right-4"
+                      style={{
+                        animation: "crown-pulse 1s ease infinite",
+                      }}
+                    >
+                      <Image
+                        src="/capi-victory.svg"
+                        alt="Victory"
+                        width={100}
+                        height={100}
+                        className="w-36 h-36"
+                      />
                     </div>
+                  ) : (
+                    market.status === "OPEN" && (
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-black flex-shrink-0 ml-4">
+                        <ChevronRight className="h-5 w-5 text-black" />
+                      </div>
+                    )
                   )}
                 </div>
               </button>
@@ -681,6 +700,21 @@ export default function MarketDetails() {
           </div>
         </DrawerContent>
       </Drawer>
+
+      {/* Animations */}
+      <style jsx>{`
+        @keyframes crown-pulse {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </main>
   );
 }
