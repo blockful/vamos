@@ -363,7 +363,7 @@ export default function OptionDetails() {
             }}
           >
             <DrawerTrigger asChild>
-              <Button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-6 text-lg rounded-2xl">
+              <Button className="w-full text-white font-bold py-6 text-lg rounded-2xl" style={{ backgroundColor: "#A4D18E" }}>
                 Place Bet
               </Button>
             </DrawerTrigger>
@@ -387,7 +387,8 @@ export default function OptionDetails() {
                         {/* Decrement Button */}
                         <button
                           onClick={handleDecrement}
-                          className="w-14 h-14 flex-shrink-0 rounded-full bg-green-400 hover:bg-green-500 flex items-center justify-center text-white transition-colors"
+                          className="w-14 h-14 flex-shrink-0 rounded-full flex items-center justify-center text-white transition-colors"
+                          style={{ backgroundColor: "#A4D18E" }}
                         >
                           <Minus className="h-6 w-6" />
                         </button>
@@ -410,7 +411,8 @@ export default function OptionDetails() {
                         {/* Increment Button */}
                         <button
                           onClick={handleIncrement}
-                          className="w-14 h-14 flex-shrink-0 rounded-full bg-green-400 hover:bg-green-500 flex items-center justify-center text-white transition-colors"
+                          className="w-14 h-14 flex-shrink-0 rounded-full flex items-center justify-center text-white transition-colors"
+                          style={{ backgroundColor: "#A4D18E" }}
                         >
                           <Plus className="h-6 w-6" />
                         </button>
@@ -447,7 +449,8 @@ export default function OptionDetails() {
                     <DrawerFooter>
                       <Button
                         onClick={handleConfirmBet}
-                        className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-6 text-lg rounded-2xl"
+                        className="w-full text-white font-bold py-6 text-lg rounded-2xl"
+                        style={{ backgroundColor: "#A4D18E" }}
                       >
                         Confirm bet
                       </Button>
@@ -473,7 +476,8 @@ export default function OptionDetails() {
                       <div className="w-full space-y-3">
                         <Button
                           onClick={handleShare}
-                          className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-6 text-lg rounded-lg"
+                          className="w-full text-white font-semibold py-6 text-lg rounded-lg"
+                          style={{ backgroundColor: "#A4D18E" }}
                         >
                           Share
                         </Button>

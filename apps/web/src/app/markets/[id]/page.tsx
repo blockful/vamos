@@ -3,6 +3,9 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useParams, useRouter } from "next/navigation";
 import { Share2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ChartContainer, ChartStyle, RechartsPrimitive } from "@/components/ui/chart";
+import Image from "next/image";
+import { useState } from "react";
 
 // Mock data - should match the data from markets page
 const MOCK_MARKETS = [
@@ -37,14 +40,14 @@ const MOCK_MARKETS = [
       },
     ],
     chartData: [
-      { timestamp: 1, option1: 45, option2: 55 },
-      { timestamp: 2, option1: 52, option2: 48 },
-      { timestamp: 3, option1: 48, option2: 52 },
-      { timestamp: 4, option1: 55, option2: 45 },
-      { timestamp: 5, option1: 58, option2: 42 },
-      { timestamp: 6, option1: 53, option2: 47 },
-      { timestamp: 7, option1: 60, option2: 40 },
-      { timestamp: 8, option1: 65, option2: 35 },
+      { date: "Nov 11, 2pm", option1: 45, option2: 55 },
+      { date: "Nov 11, 3pm", option1: 52, option2: 48 },
+      { date: "Nov 11, 4pm", option1: 48, option2: 52 },
+      { date: "Nov 11, 4:30pm", option1: 55, option2: 45 },
+      { date: "Nov 11, 5pm", option1: 58, option2: 42 },
+      { date: "Nov 11, 5:30pm", option1: 53, option2: 47 },
+      { date: "Nov 11, 6pm", option1: 60, option2: 40 },
+      { date: "Nov 11, 6:30pm", option1: 65, option2: 35 },
     ],
   },
   {
@@ -70,8 +73,8 @@ const MOCK_MARKETS = [
       },
     ],
     chartData: [
-      { timestamp: 1, option1: 50, option2: 50 },
-      { timestamp: 2, option1: 48, option2: 52 },
+      { date: "Nov 11, 2pm", option1: 50, option2: 50 },
+      { date: "Nov 11, 4:30pm", option1: 48, option2: 52 },
     ],
   },
   {
@@ -97,8 +100,8 @@ const MOCK_MARKETS = [
       },
     ],
     chartData: [
-      { timestamp: 1, option1: 60, option2: 40 },
-      { timestamp: 2, option1: 70, option2: 30 },
+      { date: "Nov 11, 2pm", option1: 60, option2: 40 },
+      { date: "Nov 11, 4:30pm", option1: 70, option2: 30 },
     ],
   },
 ];
@@ -107,9 +110,45 @@ export default function MarketDetails() {
   const { isMiniAppReady } = useMiniApp();
   const params = useParams();
   const router = useRouter();
+  const [isExiting, setIsExiting] = useState(false);
   const marketId = parseInt(params.id as string);
 
   const market = MOCK_MARKETS.find((m) => m.id === marketId);
+
+  // Get the latest percentages from chart data
+  const getLatestPercentages = () => {
+    if (market && market.chartData.length > 0) {
+      const latest = market.chartData[market.chartData.length - 1];
+      return {
+        option1: latest.option1,
+        option2: latest.option2,
+      };
+    }
+    return { option1: 50, option2: 50 };
+  };
+
+  const latestPercentages = getLatestPercentages();
+
+  // Calculate total amounts based on percentages
+  const getTotalAmounts = () => {
+    if (market) {
+      const total = market.totalVolume;
+      return {
+        option1: Math.round((total * latestPercentages.option1) / 100),
+        option2: Math.round((total * latestPercentages.option2) / 100),
+      };
+    }
+    return { option1: 50, option2: 50 };
+  };
+
+  const totalAmounts = getTotalAmounts();
+
+  const handleBack = () => {
+    setIsExiting(true);
+    setTimeout(() => {
+      router.back();
+    }, 300);
+  };
 
   if (!isMiniAppReady) {
     return (
@@ -135,165 +174,204 @@ export default function MarketDetails() {
   }
 
   return (
-    <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <section className="max-w-2xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-3xl shadow-xl p-6 space-y-6">
-          {/* Header with Back Button, Icon, Title, Description, Judge, and Share */}
-          <div className="flex items-start gap-4">
-            {/* Back Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-              className="flex-shrink-0"
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </Button>
+    <main className="flex-1 min-h-screen bg-[#111909]">
+      <section
+        className="px-2 pb-2 space-y-2"
+        style={{
+          animation: isExiting ? "slide-down 0.3s ease-in forwards" : "slide-up 0.5s ease-out"
+        }}
+      >
+        {/* Header Card */}
+        <div className="bg-[#FCFDF5] rounded-2xl p-5 space-y-4">
+          {/* Back Button */}
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-1 text-black hover:opacity-70 transition-opacity"
+          >
+            <ChevronLeft className="h-5 w-5" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
 
-            {/* Market Icon */}
-            <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-4xl flex-shrink-0">
+          {/* Top Row - Icon and Badge */}
+          <div className="flex items-start justify-between">
+            <div className="w-12 h-12 rounded-full bg-[#FEABEF] flex items-center justify-center text-2xl flex-shrink-0">
               {market.icon}
             </div>
-
-            {/* Info Section */}
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-gray-900 mb-1">
-                {market.title}
-              </h1>
-              <p className="text-sm text-gray-600 mb-1">{market.description}</p>
-              <p className="text-sm text-gray-700">
-                <span className="font-medium">Judge:</span> {market.judge}
-              </p>
-            </div>
-
-            {/* Share Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex items-center gap-1 text-orange-500 hover:text-orange-600 flex-shrink-0"
-            >
-              <span className="text-sm font-medium">share</span>
-              <Share2 className="h-4 w-4" />
-            </Button>
+            <span className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-2 ${
+              market.status === "Betting Open"
+                ? "bg-[#FEABEF] bg-opacity-40 text-[#CC66BA]"
+                : "bg-gray-300 text-gray-600"
+            }`}>
+              {market.status === "Betting Open" && (
+                <div
+                  className="w-2 h-2 rounded-full bg-[#CC66BA]"
+                  style={{
+                    animation: "pulse-dot 2s infinite",
+                    boxShadow: "0 0 0 0 rgba(204, 102, 186, 0.7)"
+                  }}
+                />
+              )}
+              {market.status === "Betting Open" ? "BETS OPEN" : "BETS CLOSED"}
+            </span>
           </div>
 
-          {/* Bet Volume and Status */}
-          <div className="bg-gray-100 rounded-2xl p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">
-                BET VOLUME
-              </p>
-              <p className="text-2xl font-bold text-gray-900">
-                ${market.totalVolume}
-              </p>
+          {/* Title and Description */}
+          <div>
+            <h1 className="text-2xl font-semibold text-black mb-2">
+              {market.title.replace("Match: ", "Tennis Match: ")}
+            </h1>
+            <p className="text-sm text-gray-700">{market.description}</p>
+          </div>
+
+          {/* Judge and Volume */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-gray-300 flex-shrink-0" />
+              <span className="text-sm text-black">Judge: {market.judge}</span>
             </div>
-            <div className="bg-gray-300 px-4 py-2 rounded-lg">
-              <p className="text-sm font-medium text-gray-700">
-                {market.status}
-              </p>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold text-black">$</span>
+              <span className="text-sm text-black">Volume: ${market.totalVolume}</span>
             </div>
           </div>
 
-          {/* Chart Placeholder */}
-          <div className="bg-gray-100 rounded-2xl p-4 h-48 relative overflow-hidden">
-            {/* Simple SVG Line Chart */}
-            <svg
-              className="w-full h-full"
-              viewBox="0 0 400 160"
-              preserveAspectRatio="none"
-            >
-              {/* Grid lines */}
-              <line
-                x1="0"
-                y1="40"
-                x2="400"
-                y2="40"
-                stroke="#e5e7eb"
-                strokeWidth="1"
-              />
-              <line
-                x1="0"
-                y1="80"
-                x2="400"
-                y2="80"
-                stroke="#e5e7eb"
-                strokeWidth="1"
-              />
-              <line
-                x1="0"
-                y1="120"
-                x2="400"
-                y2="120"
-                stroke="#e5e7eb"
-                strokeWidth="1"
-              />
+          {/* Share Button */}
+          <button className="w-full bg-gray-200 hover:bg-gray-300 text-black font-semibold py-2 rounded-2xl flex items-center justify-center gap-2 transition-colors">
+            <Share2 className="h-4 w-4" />
+            Share
+          </button>
+        </div>
 
-              {/* Option 1 Line (Gray) */}
-              <polyline
-                fill="none"
-                stroke="#9ca3af"
-                strokeWidth="3"
-                points={market.chartData
-                  .map((point, index) => {
-                    const x = (index / (market.chartData.length - 1)) * 400;
-                    const y = 160 - (point.option1 / 100) * 160;
-                    return `${x},${y}`;
-                  })
-                  .join(" ")}
-              />
+        {/* Predictions Chart */}
+        <div className="bg-[#FCFDF5] rounded-2xl p-5 space-y-4">
+          <h2 className="text-xl font-bold text-black">Predictions</h2>
 
-              {/* Option 2 Line (Yellow) */}
-              <polyline
-                fill="none"
+          {/* Legend */}
+          <div className="flex gap-6 items-center">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#A4D18E" }} />
+              <span className="text-sm font-medium text-black">{market.options[0].name}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-yellow-300" />
+              <span className="text-sm font-medium text-black">{market.options[1].name}</span>
+            </div>
+          </div>
+
+          {/* Chart */}
+          <ChartContainer
+            config={{
+              option1: {
+                label: market.options[0].name,
+                color: "#A4D18E",
+              },
+              option2: {
+                label: market.options[1].name,
+                color: "#fbbf24",
+              },
+            }}
+            className="h-64 w-full"
+          >
+            <RechartsPrimitive.LineChart data={market.chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <RechartsPrimitive.CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+              <RechartsPrimitive.XAxis
+                dataKey="date"
+                stroke="#6b7280"
+                fontSize={11}
+                tick={{ fill: "#6b7280" }}
+              />
+              <RechartsPrimitive.YAxis
+                stroke="#6b7280"
+                fontSize={11}
+                domain={[0, 100]}
+                tickFormatter={(value) => `${value}%`}
+                tick={{ fill: "#6b7280" }}
+              />
+              <RechartsPrimitive.Tooltip
+                contentStyle={{
+                  backgroundColor: "#1f2937",
+                  border: "1px solid #374151",
+                  borderRadius: "8px",
+                  color: "#fff",
+                }}
+              />
+              <RechartsPrimitive.Line
+                type="monotone"
+                dataKey="option1"
+                stroke="#A4D18E"
+                strokeWidth={2}
+                dot={false}
+                name={market.options[0].name}
+              />
+              <RechartsPrimitive.Line
+                type="monotone"
+                dataKey="option2"
                 stroke="#fbbf24"
-                strokeWidth="3"
-                points={market.chartData
-                  .map((point, index) => {
-                    const x = (index / (market.chartData.length - 1)) * 400;
-                    const y = 160 - (point.option2 / 100) * 160;
-                    return `${x},${y}`;
-                  })
-                  .join(" ")}
+                strokeWidth={2}
+                dot={false}
+                name={market.options[1].name}
               />
-            </svg>
-          </div>
+            </RechartsPrimitive.LineChart>
+          </ChartContainer>
+        </div>
 
-          {/* Betting Options */}
-          <div className="space-y-3">
-            {/* Option 1 */}
-            <Button
-              variant="outline"
-              onClick={() => router.push(`/markets/${marketId}/0`)}
-              className="w-full bg-gray-200 hover:bg-gray-300 transition-colors rounded-2xl p-4 h-auto flex items-center justify-between group border-0"
-            >
-              <div className="text-left">
-                <p className="text-lg font-bold text-gray-900">
-                  {market.options[0].name}
-                </p>
-                <p className="text-sm text-gray-600">
-                  ${market.options[0].totalAmount}
-                </p>
-              </div>
-              <ChevronRight className="h-6 w-6 text-gray-600 group-hover:text-gray-800" />
-            </Button>
+        {/* Betting Options */}
+        <div className="space-y-2">
+          {market.options.map((option, index) => {
+            const percentage = index === 0 ? latestPercentages.option1 : latestPercentages.option2;
+            const totalAmount = index === 0 ? totalAmounts.option1 : totalAmounts.option2;
 
-            {/* Option 2 */}
-            <Button
-              variant="outline"
-              onClick={() => router.push(`/markets/${marketId}/1`)}
-              className="w-full bg-yellow-400 hover:bg-yellow-500 transition-colors rounded-2xl p-4 h-auto flex items-center justify-between group border-0"
-            >
-              <div className="text-left">
-                <p className="text-lg font-bold text-gray-900">
-                  {market.options[1].name}
-                </p>
-                <p className="text-sm text-gray-700">
-                  ${market.options[1].totalAmount}
-                </p>
-              </div>
-              <ChevronRight className="h-6 w-6 text-gray-700 group-hover:text-gray-900" />
-            </Button>
-          </div>
+            return (
+              <button
+                key={index}
+                onClick={() => router.push(`/markets/${marketId}/${index}`)}
+                className="w-full rounded-2xl overflow-hidden relative h-auto transition-all hover:shadow-lg active:scale-95"
+              >
+                {/* Progress bar background fill */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    width: `${percentage}%`,
+                    backgroundColor: index === 0 ? "#A4D18E" : "#fbbf24"
+                  }}
+                />
+
+                {/* White background for content */}
+                <div className="absolute inset-0 bg-white" />
+
+                {/* Progress overlay */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    width: `${percentage}%`,
+                    backgroundColor: index === 0 ? "#A4D18E" : "#fbbf24"
+                  }}
+                />
+
+                {/* Content */}
+                <div className="relative flex items-center justify-between h-full p-4">
+                  <div className="flex-1 flex flex-col">
+                    <p className="text-lg text-left font-semibold text-black mb-2">{option.name}</p>
+                    <div className="flex gap-8">
+                      <div>
+                        <p className="text-xs text-black opacity-70">Total</p>
+                        <p className="text-sm font-semibold text-black">${totalAmount}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-black opacity-70">Your bet</p>
+                        <p className="text-sm font-semibold text-black">$0.00</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chevron button */}
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-black flex-shrink-0 ml-4">
+                    <ChevronRight className="h-5 w-5 text-black" />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </section>
     </main>

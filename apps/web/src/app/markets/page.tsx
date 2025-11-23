@@ -26,18 +26,18 @@ const MOCK_MARKETS = [
     volume: "$100.00",
     icon: "🎾",
     options: [
-      { name: "Alex", percentage: 80, color: "bg-green-400" },
+      { name: "Alex", percentage: 80, color: "bg-[#A4D18E]" },
       { name: "Jason", percentage: 20, color: "bg-yellow-200" },
     ],
   },
-  { 
+  {
     id: 2,
     title: "Tennis Match: Alex vs Jason",
     status: "BETS OPEN",
     volume: "$100.00",
     icon: "🎾",
     options: [
-      { name: "Alex", percentage: 80, color: "bg-green-400" },
+      { name: "Alex", percentage: 80, color: "bg-[#A4D18E]" },
       { name: "Jason", percentage: 20, color: "bg-yellow-200" },
     ],
   },
@@ -83,7 +83,7 @@ export default function Markets() {
         volume: "$0.00",
         icon: "📊",
         options: [
-          { name: values.optionA, percentage: 50, color: "bg-green-400" },
+          { name: values.optionA, percentage: 50, color: "bg-[#A4D18E]" },
           { name: values.optionB, percentage: 50, color: "bg-yellow-200" },
         ],
       };
@@ -109,12 +109,12 @@ export default function Markets() {
   return (
     <main className="flex-1 min-h-screen bg-[#111909]">
       {/* Markets List */}
-      <section className="px-4 pb-24">
-        <div className="max-w-2xl mx-auto space-y-4">
+      <section className="px-2 pb-2">
+        <div className="max-w-2xl mx-auto space-y-2">
           {markets.map((market) => (
             <div
               key={market.id}
-              className={`rounded-2xl p-5 hover:shadow-lg transition-shadow cursor-pointer ${
+              className={`rounded-2xl p-5 hover:shadow-lg transition-all cursor-pointer active:scale-95 ${
                 market.status === "BETS OPEN"
                   ? "bg-[#FCFDF5]"
                   : "bg-gray-100"
@@ -123,18 +123,31 @@ export default function Markets() {
             >
               {/* Header */}
               <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-full bg-[#FEABEF] flex items-center justify-center flex-shrink-0 text-2xl">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-2xl ${
+                  market.status === "BETS OPEN"
+                    ? "bg-[#FEABEF]"
+                    : "bg-gray-400"
+                }`}>
                   {market.icon}
                 </div>
-                <span
-                  className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap ${
+                <div
+                  className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-2 ${
                     market.status === "BETS OPEN"
-                      ? "bg-[#FEABEF] text-black"
+                      ? "bg-[#FEABEF] bg-opacity-40 text-[#CC66BA]"
                       : "bg-gray-300 text-gray-600"
                   }`}
                 >
+                  {market.status === "BETS OPEN" && (
+                    <div
+                      className="w-2 h-2 rounded-full bg-[#CC66BA]"
+                      style={{
+                        animation: "pulse-dot 2s infinite",
+                        boxShadow: "0 0 0 0 rgba(204, 102, 186, 0.7)"
+                      }}
+                    />
+                  )}
                   {market.status}
-                </span>
+                </div>
               </div>
 
               {/* Title and Volume */}
@@ -150,7 +163,9 @@ export default function Markets() {
                 {market.options.map((option, index) => (
                   <div key={index} className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
                     <div
-                      className={`h-full ${option.color} flex items-center px-3 transition-all duration-300`}
+                      className={`h-full ${option.color} flex items-center px-3 transition-all duration-300 ${
+                        market.status === "BETS CLOSED" ? "opacity-70" : ""
+                      }`}
                       style={{ width: `${option.percentage}%` }}
                     />
                     <div className="absolute inset-0 flex items-center px-3 justify-between pointer-events-none">
