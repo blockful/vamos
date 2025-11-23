@@ -23,7 +23,8 @@ export default function MarketDetails() {
   const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
 
   // Get ENS name for judge if market judge is an address
-  const judgeAddress = market?.judge && market.judge.startsWith("0x") ? market.judge : undefined;
+  const judgeAddress =
+    market?.judge && market.judge.startsWith("0x") ? market.judge : undefined;
   const { data: judgeEnsName } = useEnsName(judgeAddress);
 
   // Get the latest percentages from chart data
@@ -159,7 +160,10 @@ export default function MarketDetails() {
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-gray-300 flex-shrink-0" />
               <span className="text-sm text-black">
-                Judge: {judgeAddress ? formatAddressOrEns(judgeAddress, judgeEnsName, true) : market.judge}
+                Judge:{" "}
+                {judgeAddress
+                  ? formatAddressOrEns(judgeAddress, judgeEnsName, true)
+                  : market.judge}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -178,11 +182,11 @@ export default function MarketDetails() {
         </div>
 
         {/* Predictions Chart */}
-        <div className="bg-[#FCFDF5] rounded-2xl p-5 space-y-4">
-          <h2 className="text-xl font-bold text-black">Predictions</h2>
+        {/* <div className="bg-[#FCFDF5] rounded-2xl p-5 space-y-4">
+          <h2 className="text-xl font-bold text-black">Predictions</h2> */}
 
-          {/* Legend */}
-          <div className="flex gap-6 items-center">
+        {/* Legend */}
+        {/* <div className="flex gap-6 items-center">
             <div className="flex items-center gap-2">
               <div
                 className="w-3 h-3 rounded-full"
@@ -198,10 +202,10 @@ export default function MarketDetails() {
                 {market.options[1].name}
               </span>
             </div>
-          </div>
+          </div> */}
 
-          {/* Chart */}
-          <ChartContainer
+        {/* Chart */}
+        {/* <ChartContainer
             config={{
               option1: {
                 label: market.options[0].name,
@@ -261,8 +265,8 @@ export default function MarketDetails() {
                 name={market.options[1].name}
               />
             </RechartsPrimitive.LineChart>
-          </ChartContainer>
-        </div>
+          </ChartContainer> */}
+        {/* </div> */}
 
         {/* Betting Options */}
         <div className="space-y-2">

@@ -105,6 +105,13 @@ export default function OptionDetails() {
         title: "Bet Placed Successfully!",
         description: `Your bet of $${betAmount} has been confirmed.`,
       });
+
+      // Close drawer after 2 seconds
+      setTimeout(() => {
+        setIsDrawerOpen(false);
+        setShowConfirmation(false);
+        setBetAmount(0);
+      }, 2000);
     }
   }, [isConfirmed, betAmount, toast]);
 
@@ -265,16 +272,11 @@ export default function OptionDetails() {
     );
   }
 
-  if (marketError || !option) {
+  if (!option) {
     return (
       <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="max-w-2xl mx-auto px-4 py-8 text-center">
-          <p className="text-red-600 mb-4">
-            {marketError ? "Error loading option" : "Option not found"}
-          </p>
-          {marketError && (
-            <p className="text-gray-600 mb-4">{marketError.message}</p>
-          )}
+          <p className="text-red-600 mb-4">{"Option not found"}</p>
           <Button onClick={() => router.back()}>Go Back</Button>
         </div>
       </main>
@@ -327,7 +329,7 @@ export default function OptionDetails() {
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-6 pb-32">
         {/* Chart */}
-        <div className="h-64">
+        {/* <div className="h-64">
           {option.chartData && option.chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={option.chartData}>
@@ -368,10 +370,10 @@ export default function OptionDetails() {
               No data available
             </div>
           )}
-        </div>
+        </div> */}
 
         {/* Divider */}
-        <div className="border-b-2 border-dashed border-gray-300 my-4"></div>
+        {/* <div className="border-b-2 border-dashed border-gray-300 my-4"></div> */}
 
         {/* Bets Section */}
         <div>
@@ -399,7 +401,9 @@ export default function OptionDetails() {
                 </div>
 
                 <div className="flex-1">
-                  <p className="font-semibold text-black">{bet.address}</p>
+                  <p className="font-semibold text-black">
+                    {formatAddressOrEns(bet.address)}
+                  </p>
                   <p className="text-lg font-bold text-black">${bet.amount}</p>
                 </div>
               </div>
@@ -507,15 +511,25 @@ export default function OptionDetails() {
                   onClick={handleConfirmBet}
                   className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-semibold py-6 text-lg rounded-full border-2 border-[#111909]"
                   style={{ boxShadow: "2px 2px 0px #111909" }}
-                  disabled={isPending || isConfirming || betAmount < 1}
+                  disabled={
+                    isProcessing ||
+                    isPending ||
+                    isConfirming ||
+                    isApprovePending ||
+                    isApproveConfirming ||
+                    betAmount < 1
+                  }
                 >
-                  {isPending || isConfirming ? "Processing..." : "Confirm bet"}
+                  {isPending || isConfirming
+                    ? "Confirming Bet..."
+                    : isApprovePending || isApproveConfirming
+                    ? "Approving Tokens..."
+                    : isProcessing
+                    ? "Processing..."
+                    : needsApproval && !isApproveConfirmed
+                    ? "Approve Tokens"
+                    : "Confirm bet"}
                 </Button>
-                {error && (
-                  <p className="text-sm text-red-500 text-center mt-2">
-                    Error: {error.message}
-                  </p>
-                )}
               </div>
             </>
           ) : (
