@@ -160,7 +160,6 @@ export default function MarketDetails() {
             <h1 className="text-2xl font-semibold text-black mb-2">
               {market.title.replace("Match: ", "Tennis Match: ")}
             </h1>
-            <p className="text-sm text-gray-700 mb-2">{market.description}</p>
             
             {/* Market metadata */}
             <div className="flex flex-wrap gap-2 text-xs text-gray-600">
