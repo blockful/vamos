@@ -149,7 +149,7 @@ export function Navbar() {
   }, [isOpen]);
 
   return (
-    <header className="fixed top-2 left-2 right-2 z-50 bg-[#FEABEF] rounded-2xl mb-2">
+    <header className="fixed top-2 left-1/2 -translate-x-1/2 z-50 bg-[#FEABEF] rounded-2xl mb-2 w-[calc(100%-1rem)] max-w-[632px]">
       <div className="flex h-20 items-center justify-between px-6">
         {/* Left side - Logo */}
         <button

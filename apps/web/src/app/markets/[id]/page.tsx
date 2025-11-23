@@ -496,9 +496,11 @@ export default function MarketDetails() {
                 <div
                   className="absolute inset-0"
                   style={{
-                    background: `linear-gradient(to right, ${getOptionColor(
-                      index
-                    )} 0%, ${getOptionColor(index)} ${percentage}%, white ${percentage}%, white 100%)`,
+                    background: `linear-gradient(to right, ${
+                      index === 0 ? "#A4D18E" : "#E3DAA2"
+                    } 0%, ${
+                      index === 0 ? "#A4D18E" : "#E3DAA2"
+                    } ${percentage}%, white ${percentage}%, white 100%)`,
                   }}
                 />
 
