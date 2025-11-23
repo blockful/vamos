@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatUnits } from "viem";
 import { formatTimeAgo } from "@/app/helpers/formatTimeAgo";
+import ColorHash from "color-hash";
 
 // Types for the GraphQL response
 interface Bet {
@@ -51,6 +52,7 @@ interface MarketsResponse {
     };
 }
 
+
 // GraphQL query
 const MARKETS_QUERY = `
   query Markets {
@@ -77,6 +79,79 @@ const MARKETS_QUERY = `
 `;
 
 const API_URL = process.env.NEXT_PUBLIC_GRAPHQL_API_URL as string;
+
+// Predefined colors for common option names
+const PRESET_OPTION_COLORS: Record<string, string> = {
+    // Yes/No variations
+    "yes": "#A4D18E",      // Green
+    "sim": "#A4D18E",      // Green
+    "no": "#ff9999",       // Light red/pink
+    "não": "#ff9999",      // Light red/pink
+    "nao": "#ff9999",      // Light red/pink
+
+    // True/False
+    "true": "#A4D18E",     // Green
+    "verdadeiro": "#A4D18E", // Green
+    "false": "#ff9999",    // Light red/pink
+    "falso": "#ff9999",    // Light red/pink
+
+    // Win/Lose
+    "win": "#A4D18E",      // Green
+    "vitória": "#A4D18E",  // Green
+    "vitoria": "#A4D18E",  // Green
+    "lose": "#ff9999",     // Light red/pink
+    "derrota": "#ff9999",  // Light red/pink
+
+    // Pass/Fail
+    "pass": "#A4D18E",     // Green
+    "passou": "#A4D18E",   // Green
+    "fail": "#ff9999",     // Light red/pink
+    "falhou": "#ff9999",   // Light red/pink
+
+    // Up/Down
+    "up": "#A4D18E",       // Green
+    "subir": "#A4D18E",    // Green
+    "down": "#ff9999",     // Light red/pink
+    "descer": "#ff9999",   // Light red/pink
+
+    // High/Low
+    "high": "#A4D18E",     // Green
+    "alto": "#A4D18E",     // Green
+    "low": "#ff9999",      // Light red/pink
+    "baixo": "#ff9999",    // Light red/pink
+
+    // Bull/Bear (for trading markets)
+    "bull": "#A4D18E",     // Green
+    "bullish": "#A4D18E",  // Green
+    "bear": "#ff9999",     // Light red/pink
+    "bearish": "#ff9999",  // Light red/pink
+
+    // Common neutral options
+    "maybe": "#E3DAA2",    // Yellow/beige
+    "talvez": "#E3DAA2",   // Yellow/beige
+    "neutral": "#E3DAA2",  // Yellow/beige
+    "draw": "#E3DAA2",     // Yellow/beige
+    "empate": "#E3DAA2",   // Yellow/beige
+};
+
+const colorHash = new ColorHash({
+    saturation: [0.4, 0.5],
+    lightness: [0.75, 0.85]
+});
+
+
+// Helper function to get color based on option name
+export const getColorForOption = (optionName: string): string => {
+    const normalizedName = optionName.trim().toLowerCase();
+
+    // Check if option has a preset color
+    if (PRESET_OPTION_COLORS[normalizedName]) {
+        return PRESET_OPTION_COLORS[normalizedName];
+    }
+
+    // For other options, use ColorHash to generate consistent colors
+    return colorHash.hex(optionName);
+};
 
 /**
  * Hook to fetch markets from the indexer API
@@ -270,15 +345,6 @@ export function transformMarketForUI(market: Market) {
         };
     });
 
-    // Assign colors to options
-    const colors = [
-        "#A4D18E",
-        "#E3DAA2",
-        "#fbbf24",
-        "#f97316",
-        "#0ea5e9",
-        "#ef4444",
-    ];
 
     return {
         id: market.id,
@@ -291,9 +357,9 @@ export function transformMarketForUI(market: Market) {
         judge: market.judge,
         winningOutcome: market.winningOutcome,
         timeAgo: market.createdAt ? formatTimeAgo(market.createdAt) : "Unknown",
-        options: options.map((opt, index) => ({
+        options: options.map((opt) => ({
             ...opt,
-            color: colors[index % colors.length],
+            color: getColorForOption(opt.name || ""),
         })),
     };
 }

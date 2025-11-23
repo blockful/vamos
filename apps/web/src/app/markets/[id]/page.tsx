@@ -22,7 +22,11 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 
-import { useMarket, transformMarketForDetailsUI } from "@/hooks/use-markets";
+import {
+  useMarket,
+  transformMarketForDetailsUI,
+  getColorForOption,
+} from "@/hooks/use-markets";
 import { formatCurrency } from "@/lib/utils";
 import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
 import { usePauseMarket, useResolveMarket } from "@/hooks/use-vamos-contract";
@@ -490,17 +494,14 @@ export default function MarketDetails() {
                 key={index}
                 disabled={market.status !== "OPEN"}
                 onClick={() => router.push(`/markets/${marketId}/${index}`)}
-                className={`w-full rounded-2xl overflow-hidden relative h-auto transition-all hover:shadow-lg active:scale-95`}
+                className={`w-full rounded-2xl overflow-hidden relative h-auto transition-all hover:shadow-lg active:scale-95 bg-white`}
               >
-                {/* Colored background for left side and white for right */}
+                {/* Colored background bar based on percentage */}
                 <div
-                  className="absolute inset-0"
+                  className="absolute inset-y-0 left-0 transition-all duration-300"
                   style={{
-                    background: `linear-gradient(to right, ${
-                      index === 0 ? "#A4D18E" : "#E3DAA2"
-                    } 0%, ${
-                      index === 0 ? "#A4D18E" : "#E3DAA2"
-                    } ${percentage}%, white ${percentage}%, white 100%)`,
+                    width: `${percentage}%`,
+                    background: getColorForOption(option.name),
                   }}
                 />
 
