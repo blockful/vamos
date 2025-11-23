@@ -19,7 +19,7 @@ const VAMOS_TOKEN_ADDRESS = process.env
 export function Navbar() {
   const router = useRouter();
   const { disconnect } = useDisconnect();
-  const { context, isMiniAppReady } = useMiniApp();
+  const { context } = useMiniApp();
   const [isOpen, setIsOpen] = useState(false);
 
   // Use wallet connect hook
@@ -148,7 +148,6 @@ export function Navbar() {
     }
   }, [isOpen]);
 
-
   return (
     <header className="fixed top-2 left-2 right-2 z-50 bg-[#FEABEF] rounded-2xl mb-2">
       <div className="flex h-20 items-center justify-between px-6">
@@ -262,7 +261,7 @@ export function Navbar() {
                       {displayName}
                     </p>
                     <p className="text-xs text-gray-500 mt-1 font-mono">
-                      {formatAddressOrEns(address, ensName, true)}
+                      {formatAddressOrEns(address!, ensName, true)}
                     </p>
                   </div>
                   <button
