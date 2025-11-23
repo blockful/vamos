@@ -13,8 +13,8 @@ contract Deploy is Script {
     function run() external {
         // Get configuration from environment variables
         address predictionToken = vm.envOr("TOKEN_ADDRESS", address(0));
-        uint256 protocolFeeRate = vm.envOr("PROTOCOL_FEE_RATE", uint256(200)); // Default: 2%
-        uint256 creatorFeeRate = vm.envOr("CREATOR_FEE_RATE", uint256(300)); // Default: 3%
+        uint256 protocolFeeRate = vm.envOr("PROTOCOL_FEE_RATE", uint256(250)); // Default: 2.5%
+        uint256 creatorFeeRate = vm.envOr("CREATOR_FEE_RATE", uint256(250)); // Default: 2.5%
         
         require(predictionToken != address(0), "TOKEN_ADDRESS not set");
         

@@ -6,9 +6,9 @@
     "build": "forge build",
     "test": "forge test",
     "test:verbose": "forge test -vvv",
-    "deploy:token": "source ../../.env && forge script script/DeployToken.s.sol:DeployToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --etherscan-api-key $ETHERSCAN_API_KEY -vvvv",
-    "deploy:vamos": "source ../../.env && forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --etherscan-api-key $ETHERSCAN_API_KEY -vvvv",
-    "mint": "source ../../.env && forge script script/MintTokens.s.sol:MintTokens --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast -vvvv"
+    "deploy:token": "set -a && source ../../.env && set +a && forge script script/DeployToken.s.sol:DeployToken --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --etherscan-api-key $ETHERSCAN_API_KEY -vvvv",
+    "deploy:vamos": "set -a && source ../../.env && set +a && forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast --verify --etherscan-api-key $ETHERSCAN_API_KEY -vvvv",
+    "mint": "set -a && source ../../.env && set +a && forge script script/MintTokens.s.sol:MintTokens --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast -vvvv"
   }
 }
 
