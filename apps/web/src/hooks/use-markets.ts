@@ -97,7 +97,8 @@ export function useMarkets() {
             const data: { data: MarketsResponse } = await response.json();
             return data.data.marketss.items;
         },
-        staleTime: 10000, // Consider data fresh for 10 seconds
+        refetchInterval: 10000, // Refetch every 10 seconds
+        staleTime: 5000, // Consider data fresh for 5 seconds
     });
 }
 
@@ -160,8 +161,8 @@ export function useMarket(marketId: string) {
             return data.data.markets || null;
         },
         // Only refetch manually or on mount
-        staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
-        gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+        refetchInterval: 10000, // Refetch every 10 seconds
+        staleTime: 5000, // Consider data fresh for 5 seconds
         enabled: !!marketId, // Only run if marketId exists
     });
 }
@@ -214,8 +215,8 @@ export function useOutcome(outcomeId: string) {
             return data.data.outcomes || null;
         },
         // Only refetch manually or on mount
-        staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
-        gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+        refetchInterval: 10000, // Refetch every 10 seconds
+        staleTime: 5000, // Consider data fresh for 5 seconds
         enabled: !!outcomeId, // Only run if outcomeId exists
     });
 }

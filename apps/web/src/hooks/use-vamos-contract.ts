@@ -5,7 +5,6 @@ import { Address } from "viem";
 
 // Vamos contract address
 const VAMOS_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VAMOS_CONTRACT_ADDRESS as Address;
-const VAMOS_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_VAMOS_TOKEN_ADDRESS as Address;
 
 /**
  * Hook to create a new market
