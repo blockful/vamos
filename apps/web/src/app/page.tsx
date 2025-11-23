@@ -12,7 +12,6 @@ export default function Home() {
   const { context, isMiniAppReady } = useMiniApp();
   const router = useRouter();
   const [isRequestingWallet, setIsRequestingWallet] = useState(false);
-  const [hasAttemptedAutoConnect, setHasAttemptedAutoConnect] = useState(false);
   const [showWalletOptions, setShowWalletOptions] = useState(false);
 
   // Wallet connection hooks
@@ -21,30 +20,30 @@ export default function Home() {
 
   // Auto-connect wallet when miniapp is ready (only once)
   // Only auto-connect Farcaster if in Farcaster context
-  useEffect(() => {
-    if (
-      isMiniAppReady &&
-      !isConnected &&
-      !isConnecting &&
-      !hasAttemptedAutoConnect &&
-      connectors.length > 0 &&
-      context?.client // Only auto-connect if in Farcaster
-    ) {
-      setHasAttemptedAutoConnect(true);
-      const walletConnector = connectors.find((c) => c.id === "farcaster");
-      if (walletConnector) {
-        connect({ connector: walletConnector });
-      }
-    }
-  }, [
-    isMiniAppReady,
-    isConnected,
-    isConnecting,
-    hasAttemptedAutoConnect,
-    connectors,
-    connect,
-    context,
-  ]);
+  // useEffect(() => {
+  //   if (
+  //     isMiniAppReady &&
+  //     !isConnected &&
+  //     !isConnecting &&
+  //     !hasAttemptedAutoConnect &&
+  //     connectors.length > 0 &&
+  //     context?.client // Only auto-connect if in Farcaster
+  //   ) {
+  //     setHasAttemptedAutoConnect(true);
+  //     const walletConnector = connectors.find((c) => c.id === "farcaster");
+  //     if (walletConnector) {
+  //       connect({ connector: walletConnector });
+  //     }
+  //   }
+  // }, [
+  //   isMiniAppReady,
+  //   isConnected,
+  //   isConnecting,
+  //   hasAttemptedAutoConnect,
+  //   connectors,
+  //   connect,
+  //   context,
+  // ]);
 
   // Redirect to markets when connected
   useEffect(() => {

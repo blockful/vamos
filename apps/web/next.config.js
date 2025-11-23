@@ -1,3 +1,9 @@
+const path = require("path");
+const { config: loadEnv } = require("dotenv");
+
+// Load environment variables from the monorepo root
+loadEnv({ path: path.resolve(__dirname, "../../.env") });
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,

@@ -3,108 +3,15 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useParams, useRouter } from "next/navigation";
 import { Share2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ChartContainer, ChartStyle, RechartsPrimitive } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartStyle,
+  RechartsPrimitive,
+} from "@/components/ui/chart";
 import Image from "next/image";
 import { useState } from "react";
 
-// Mock data - should match the data from markets page
-const MOCK_MARKETS = [
-  {
-    id: 1,
-    title: "Match: Alex x Jason",
-    description: "A bet about a tennis match",
-    judge: "isadorable.eth",
-    icon: "🎾",
-    status: "Betting Open",
-    totalVolume: 100,
-    options: [
-      {
-        name: "Alex",
-        percentage: 65,
-        totalAmount: 50,
-        bets: [
-          { user: "User 1", amount: 30, avatar: null },
-          { user: "User 2", amount: 50, avatar: null },
-          { user: "User 3", amount: 100, avatar: null },
-        ],
-      },
-      {
-        name: "Jason",
-        percentage: 35,
-        totalAmount: 50,
-        bets: [
-          { user: "User 4", amount: 30, avatar: null },
-          { user: "User 5", amount: 20, avatar: null },
-          { user: "User 6", amount: 50, avatar: null },
-        ],
-      },
-    ],
-    chartData: [
-      { date: "Nov 11, 2pm", option1: 45, option2: 55 },
-      { date: "Nov 11, 3pm", option1: 52, option2: 48 },
-      { date: "Nov 11, 4pm", option1: 48, option2: 52 },
-      { date: "Nov 11, 4:30pm", option1: 55, option2: 45 },
-      { date: "Nov 11, 5pm", option1: 58, option2: 42 },
-      { date: "Nov 11, 5:30pm", option1: 53, option2: 47 },
-      { date: "Nov 11, 6pm", option1: 60, option2: 40 },
-      { date: "Nov 11, 6:30pm", option1: 65, option2: 35 },
-    ],
-  },
-  {
-    id: 2,
-    title: "Match: Maria x Sofia",
-    description: "A bet about a basketball match",
-    judge: "basketballjudge.eth",
-    icon: "🏀",
-    status: "Betting Open",
-    totalVolume: 85,
-    options: [
-      {
-        name: "Maria",
-        percentage: 48,
-        totalAmount: 40,
-        bets: [{ user: "User 1", amount: 30, avatar: null }],
-      },
-      {
-        name: "Sofia",
-        percentage: 52,
-        totalAmount: 45,
-        bets: [{ user: "User 2", amount: 30, avatar: null }],
-      },
-    ],
-    chartData: [
-      { date: "Nov 11, 2pm", option1: 50, option2: 50 },
-      { date: "Nov 11, 4:30pm", option1: 48, option2: 52 },
-    ],
-  },
-  {
-    id: 3,
-    title: "Match: Bruno x Lucas",
-    description: "A bet about a soccer match",
-    judge: "soccerref.eth",
-    icon: "⚽",
-    status: "Betting Closed",
-    totalVolume: 120,
-    options: [
-      {
-        name: "Bruno",
-        percentage: 70,
-        totalAmount: 84,
-        bets: [{ user: "User 1", amount: 30, avatar: null }],
-      },
-      {
-        name: "Lucas",
-        percentage: 30,
-        totalAmount: 36,
-        bets: [{ user: "User 2", amount: 30, avatar: null }],
-      },
-    ],
-    chartData: [
-      { date: "Nov 11, 2pm", option1: 60, option2: 40 },
-      { date: "Nov 11, 4:30pm", option1: 70, option2: 30 },
-    ],
-  },
-];
+import { useMarket, transformMarketForDetailsUI } from "@/hooks/use-markets";
 
 export default function MarketDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -113,7 +20,17 @@ export default function MarketDetails() {
   const [isExiting, setIsExiting] = useState(false);
   const marketId = parseInt(params.id as string);
 
-  const market = MOCK_MARKETS.find((m) => m.id === marketId);
+  // Fetch market data from API
+  const { data: apiMarket, isLoading, error } = useMarket(marketId.toString());
+
+  const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
+
+  console.log({
+    apiMarket,
+    isLoading,
+    error,
+    market,
+  });
 
   // Get the latest percentages from chart data
   const getLatestPercentages = () => {
@@ -150,15 +67,31 @@ export default function MarketDetails() {
     }, 300);
   };
 
-  if (!isMiniAppReady) {
+  if (!isMiniAppReady || isLoading) {
     return (
       <main className="flex-1">
         <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
           <div className="w-full max-w-md mx-auto p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-gray-600">
+              {!isMiniAppReady ? "Loading..." : "Loading market..."}
+            </p>
           </div>
         </section>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">Error loading market</p>
+            <p className="text-gray-600 mb-4">{error.message}</p>
+            <Button onClick={() => router.back()}>Go Back</Button>
+          </div>
+        </div>
       </main>
     );
   }
@@ -178,7 +111,9 @@ export default function MarketDetails() {
       <section
         className="px-2 pb-2 space-y-2"
         style={{
-          animation: isExiting ? "slide-down 0.3s ease-in forwards" : "slide-up 0.5s ease-out"
+          animation: isExiting
+            ? "slide-down 0.3s ease-in forwards"
+            : "slide-up 0.5s ease-out",
         }}
       >
         {/* Header Card */}
@@ -197,17 +132,19 @@ export default function MarketDetails() {
             <div className="w-12 h-12 rounded-full bg-[#FEABEF] flex items-center justify-center text-2xl flex-shrink-0">
               {market.icon}
             </div>
-            <span className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-2 ${
-              market.status === "Betting Open"
-                ? "bg-[#FEABEF] bg-opacity-40 text-[#CC66BA]"
-                : "bg-gray-300 text-gray-600"
-            }`}>
+            <span
+              className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-2 ${
+                market.status === "Betting Open"
+                  ? "bg-[#FEABEF] bg-opacity-40 text-[#CC66BA]"
+                  : "bg-gray-300 text-gray-600"
+              }`}
+            >
               {market.status === "Betting Open" && (
                 <div
                   className="w-2 h-2 rounded-full bg-[#CC66BA]"
                   style={{
                     animation: "pulse-dot 2s infinite",
-                    boxShadow: "0 0 0 0 rgba(204, 102, 186, 0.7)"
+                    boxShadow: "0 0 0 0 rgba(204, 102, 186, 0.7)",
                   }}
                 />
               )}
@@ -231,7 +168,9 @@ export default function MarketDetails() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-black">$</span>
-              <span className="text-sm text-black">Volume: ${market.totalVolume}</span>
+              <span className="text-sm text-black">
+                Volume: ${market.totalVolume}
+              </span>
             </div>
           </div>
 
@@ -249,12 +188,19 @@ export default function MarketDetails() {
           {/* Legend */}
           <div className="flex gap-6 items-center">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#A4D18E" }} />
-              <span className="text-sm font-medium text-black">{market.options[0].name}</span>
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: "#A4D18E" }}
+              />
+              <span className="text-sm font-medium text-black">
+                {market.options[0].name}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-yellow-300" />
-              <span className="text-sm font-medium text-black">{market.options[1].name}</span>
+              <span className="text-sm font-medium text-black">
+                {market.options[1].name}
+              </span>
             </div>
           </div>
 
@@ -272,8 +218,15 @@ export default function MarketDetails() {
             }}
             className="h-64 w-full"
           >
-            <RechartsPrimitive.LineChart data={market.chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <RechartsPrimitive.CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+            <RechartsPrimitive.LineChart
+              data={market.chartData}
+              margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+            >
+              <RechartsPrimitive.CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#e5e7eb"
+                vertical={false}
+              />
               <RechartsPrimitive.XAxis
                 dataKey="date"
                 stroke="#6b7280"
@@ -318,8 +271,12 @@ export default function MarketDetails() {
         {/* Betting Options */}
         <div className="space-y-2">
           {market.options.map((option, index) => {
-            const percentage = index === 0 ? latestPercentages.option1 : latestPercentages.option2;
-            const totalAmount = index === 0 ? totalAmounts.option1 : totalAmounts.option2;
+            const percentage =
+              index === 0
+                ? latestPercentages.option1
+                : latestPercentages.option2;
+            const totalAmount =
+              index === 0 ? totalAmounts.option1 : totalAmounts.option2;
 
             return (
               <button
@@ -332,7 +289,7 @@ export default function MarketDetails() {
                   className="absolute inset-0"
                   style={{
                     width: `${percentage}%`,
-                    backgroundColor: index === 0 ? "#A4D18E" : "#fbbf24"
+                    backgroundColor: index === 0 ? "#A4D18E" : "#fbbf24",
                   }}
                 />
 
@@ -344,22 +301,30 @@ export default function MarketDetails() {
                   className="absolute inset-0"
                   style={{
                     width: `${percentage}%`,
-                    backgroundColor: index === 0 ? "#A4D18E" : "#fbbf24"
+                    backgroundColor: index === 0 ? "#A4D18E" : "#fbbf24",
                   }}
                 />
 
                 {/* Content */}
                 <div className="relative flex items-center justify-between h-full p-4">
                   <div className="flex-1 flex flex-col">
-                    <p className="text-lg text-left font-semibold text-black mb-2">{option.name}</p>
+                    <p className="text-lg text-left font-semibold text-black mb-2">
+                      {option.name}
+                    </p>
                     <div className="flex gap-8">
                       <div>
                         <p className="text-xs text-black opacity-70">Total</p>
-                        <p className="text-sm font-semibold text-black">${totalAmount}</p>
+                        <p className="text-sm font-semibold text-black">
+                          ${totalAmount}
+                        </p>
                       </div>
                       <div>
-                        <p className="text-xs text-black opacity-70">Your bet</p>
-                        <p className="text-sm font-semibold text-black">$0.00</p>
+                        <p className="text-xs text-black opacity-70">
+                          Your bet
+                        </p>
+                        <p className="text-sm font-semibold text-black">
+                          $0.00
+                        </p>
                       </div>
                     </div>
                   </div>

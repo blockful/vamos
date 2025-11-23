@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+**/dist/
+**/build/
+**/out/
+**/.next/
+
+# Generated files
+generated/
+**/generated/
+
+# Solidity & Foundry
+apps/contracts/
+**/cache/
+**/broadcast/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Misc
+.DS_Store
+*.pem
+

@@ -13,152 +13,39 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import { useState } from "react";
-
-// Mock data - should match the data from market details page
-const MOCK_MARKETS = [
-  {
-    id: 1,
-    title: "Match: Alex x Jason",
-    options: [
-      {
-        id: 0,
-        name: "Alex",
-        totalAmount: 50,
-        bets: [
-          {
-            user: "User 1",
-            address: "0x1234...5678",
-            amount: 10,
-            timestamp: 1732233600000,
-          },
-          {
-            user: "User 2",
-            address: "0xabcd...ef12",
-            amount: 10,
-            timestamp: 1732233500000,
-          },
-          {
-            user: "User 3",
-            address: "0x9876...4321",
-            amount: 10,
-            timestamp: 1732233400000,
-          },
-        ],
-        chartData: [
-          { timestamp: 1, value: 45 },
-          { timestamp: 2, value: 52 },
-          { timestamp: 3, value: 48 },
-          { timestamp: 4, value: 55 },
-          { timestamp: 5, value: 58 },
-          { timestamp: 6, value: 53 },
-          { timestamp: 7, value: 60 },
-          { timestamp: 8, value: 65 },
-        ],
-      },
-      {
-        id: 1,
-        name: "Jason",
-        totalAmount: 50,
-        bets: [
-          {
-            user: "User 4",
-            address: "0x5555...6666",
-            amount: 10,
-            timestamp: 1732233300000,
-          },
-          {
-            user: "User 5",
-            address: "0x7777...8888",
-            amount: 10,
-            timestamp: 1732233200000,
-          },
-          {
-            user: "User 6",
-            address: "0x9999...0000",
-            amount: 10,
-            timestamp: 1732233100000,
-          },
-        ],
-        chartData: [
-          { timestamp: 1, value: 55 },
-          { timestamp: 2, value: 48 },
-          { timestamp: 3, value: 52 },
-          { timestamp: 4, value: 45 },
-          { timestamp: 5, value: 42 },
-          { timestamp: 6, value: 47 },
-          { timestamp: 7, value: 40 },
-          { timestamp: 8, value: 35 },
-        ],
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "Match: Maria x Sofia",
-    options: [
-      {
-        id: 0,
-        name: "Maria",
-        totalAmount: 40,
-        bets: [
-          {
-            user: "User 1",
-            address: "0x1111...2222",
-            amount: 20,
-            timestamp: 1732233000000,
-          },
-          {
-            user: "User 2",
-            address: "0x3333...4444",
-            amount: 20,
-            timestamp: 1732232900000,
-          },
-        ],
-        chartData: [
-          { timestamp: 1, value: 50 },
-          { timestamp: 2, value: 48 },
-        ],
-      },
-      {
-        id: 1,
-        name: "Sofia",
-        totalAmount: 45,
-        bets: [
-          {
-            user: "User 3",
-            address: "0x5555...6666",
-            amount: 25,
-            timestamp: 1732232800000,
-          },
-          {
-            user: "User 4",
-            address: "0x7777...8888",
-            amount: 20,
-            timestamp: 1732232700000,
-          },
-        ],
-        chartData: [
-          { timestamp: 1, value: 50 },
-          { timestamp: 2, value: 52 },
-        ],
-      },
-    ],
-  },
-];
+import { useState, useEffect } from "react";
+import { usePlacePrediction } from "@/hooks/use-vamos-contract";
+import { useMarket, transformOutcomeForUI } from "@/hooks/use-markets";
 
 export default function OptionDetails() {
   const { isMiniAppReady } = useMiniApp();
   const params = useParams();
   const router = useRouter();
-  const marketId = parseInt(params.id as string);
-  const optionId = parseInt(params.option as string);
+  const marketId = params.id as string;
+  const optionIndex = parseInt(params.option as string);
   const [betAmount, setBetAmount] = useState(30);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const market = MOCK_MARKETS.find((m) => m.id === marketId);
-  const option = market?.options[optionId];
+  const { placePrediction, isPending, isConfirming, isConfirmed, error } =
+    usePlacePrediction();
+
+  // Fetch market data to get the outcome
+  const {
+    data: marketData,
+    isLoading: isLoadingMarket,
+    error: marketError,
+  } = useMarket(marketId);
+
+  // Get the specific outcome from the market data
+  const outcomeData = marketData?.outcomes.items[optionIndex];
+  const option = outcomeData ? transformOutcomeForUI(outcomeData) : null;
+
+  useEffect(() => {
+    if (isConfirmed) {
+      setShowConfirmation(true);
+    }
+  }, [isConfirmed]);
 
   const handleIncrement = () => setBetAmount((prev) => prev + 1);
   const handleDecrement = () => setBetAmount((prev) => Math.max(1, prev - 1));
@@ -186,14 +73,22 @@ export default function OptionDetails() {
     }
   };
 
-  const handleConfirmBet = () => {
+  const handleConfirmBet = async () => {
     // Ensure minimum value before confirming
     if (betAmount < 1) {
       setBetAmount(1);
       return;
     }
-    // Show confirmation view in the same drawer
-    setShowConfirmation(true);
+
+    try {
+      await placePrediction(
+        BigInt(marketId),
+        BigInt(optionIndex),
+        BigInt(betAmount)
+      );
+    } catch (err) {
+      console.error("Error placing prediction:", err);
+    }
   };
 
   const handleCloseConfirmation = () => {
@@ -204,27 +99,34 @@ export default function OptionDetails() {
 
   const handleShare = () => {
     // TODO: Implement share logic
-    console.log(`Sharing bet on ${option?.name}`);
   };
 
-  if (!isMiniAppReady) {
+  if (!isMiniAppReady || isLoadingMarket) {
     return (
       <main className="flex-1">
         <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
           <div className="w-full max-w-md mx-auto p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-gray-600">
+              {!isMiniAppReady ? "Loading..." : "Loading option..."}
+            </p>
           </div>
         </section>
       </main>
     );
   }
 
-  if (!option) {
+  if (marketError || !option) {
     return (
       <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="max-w-2xl mx-auto px-4 py-8">
-          <p className="text-center text-gray-600">Option not found</p>
+        <div className="max-w-2xl mx-auto px-4 py-8 text-center">
+          <p className="text-red-600 mb-4">
+            {marketError ? "Error loading option" : "Option not found"}
+          </p>
+          {marketError && (
+            <p className="text-gray-600 mb-4">{marketError.message}</p>
+          )}
+          <Button onClick={() => router.back()}>Go Back</Button>
         </div>
       </main>
     );
@@ -363,7 +265,10 @@ export default function OptionDetails() {
             }}
           >
             <DrawerTrigger asChild>
-              <Button className="w-full text-white font-bold py-6 text-lg rounded-2xl" style={{ backgroundColor: "#A4D18E" }}>
+              <Button
+                className="w-full text-white font-bold py-6 text-lg rounded-2xl"
+                style={{ backgroundColor: "#A4D18E" }}
+              >
                 Place Bet
               </Button>
             </DrawerTrigger>
@@ -451,9 +356,17 @@ export default function OptionDetails() {
                         onClick={handleConfirmBet}
                         className="w-full text-white font-bold py-6 text-lg rounded-2xl"
                         style={{ backgroundColor: "#A4D18E" }}
+                        disabled={isPending || isConfirming || betAmount < 1}
                       >
-                        Confirm bet
+                        {isPending || isConfirming
+                          ? "Processing..."
+                          : "Confirm bet"}
                       </Button>
+                      {error && (
+                        <p className="text-sm text-red-500 text-center mt-2">
+                          Error: {error.message}
+                        </p>
+                      )}
                     </DrawerFooter>
                   </>
                 ) : (
