@@ -1,6 +1,6 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
@@ -46,6 +46,14 @@ export default function Markets() {
   // Transform API markets to UI format
   const markets = apiMarkets?.map(transformMarketForUI) || [];
 
+  // Update markets list and close modal when transaction is confirmed
+  useEffect(() => {
+    if (isConfirmed && hash) {
+      setIsModalOpen(false);
+      setFormError("");
+    }
+  }, [isConfirmed, hash]);
+
   // Formik form
   const formik = useFormik({
     initialValues: {
@@ -85,12 +93,8 @@ export default function Markets() {
           validOptions // outcomes
         );
 
-        // Refetch markets after creating a new one
-        await refetch();
-
-        // Close modal and reset form
-        setIsModalOpen(false);
-        formik.resetForm();
+        // Don't close modal immediately - wait for confirmation
+        // The modal will show success message and close automatically
       } catch (error) {
         console.error("Error creating market:", error);
       }
@@ -250,7 +254,17 @@ export default function Markets() {
       </Button>
 
       {/* Create Market Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) {
+            // Reset form when modal is closed
+            formik.resetForm();
+            setFormError("");
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl h-screen max-h-screen overflow-y-auto bg-[#FCFDF5]">
           <DialogHeader>
             <DialogTitle className="text-2xl font-semibold text-black text-left">
@@ -377,9 +391,22 @@ export default function Markets() {
 
             {/* Success message */}
             {isConfirmed && hash && (
-              <p className="text-sm text-green-600 mt-2 bg-green-50 p-3 rounded-md border border-green-200">
-                ✓ Market created successfully! TX: {hash.slice(0, 10)}...
-              </p>
+              <div className="space-y-3">
+                <p className="text-sm text-green-600 mt-2 bg-green-50 p-3 rounded-md border border-green-200">
+                  ✓ Market created successfully! TX: {hash.slice(0, 10)}...
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    formik.resetForm();
+                    refetch();
+                  }}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white"
+                >
+                  View Markets
+                </Button>
+              </div>
             )}
           </form>
         </DialogContent>
