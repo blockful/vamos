@@ -72,11 +72,55 @@ module.exports = {
   				to: {
   					height: 0
   				}
+  			},
+  			'slide-in-from-bottom': {
+  				from: {
+  					opacity: 0,
+  					transform: 'translateY(100%)'
+  				},
+  				to: {
+  					opacity: 1,
+  					transform: 'translateY(0)'
+  				}
+  			},
+  			'slide-out-to-bottom': {
+  				from: {
+  					opacity: 1,
+  					transform: 'translateY(0)'
+  				},
+  				to: {
+  					opacity: 0,
+  					transform: 'translateY(100%)'
+  				}
+  			},
+  			'slide-in-from-right': {
+  				from: {
+  					opacity: 0,
+  					transform: 'translateX(100%)'
+  				},
+  				to: {
+  					opacity: 1,
+  					transform: 'translateX(0)'
+  				}
+  			},
+  			'slide-out-to-right': {
+  				from: {
+  					opacity: 1,
+  					transform: 'translateX(0)'
+  				},
+  				to: {
+  					opacity: 0,
+  					transform: 'translateX(100%)'
+  				}
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'slide-in-from-bottom': 'slide-in-from-bottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+  			'slide-out-to-bottom': 'slide-out-to-bottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+  			'slide-in-from-right': 'slide-in-from-right 0.6s ease-in-out',
+  			'slide-out-to-right': 'slide-out-to-right 0.6s ease-in-out'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

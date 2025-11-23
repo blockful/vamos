@@ -354,6 +354,7 @@ export function transformOutcomeForUI(outcome: Outcome) {
         address: bet.user, // Keep full address for ENS resolution
         amount: parseFloat(formatUnits(BigInt(bet.amount), 18)),
         timestamp: bet.lastUpdated * 1000, // Convert to milliseconds
+        avatar: null, // Avatar is not available from API, will fallback to /avatar.png
     })) || [];
 
     // Generate simple chart data (can be enhanced with real historical data later)
