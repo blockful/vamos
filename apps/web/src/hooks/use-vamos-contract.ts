@@ -22,9 +22,6 @@ export function useCreateMarket() {
         judge: Address,
         outcomes: string[]
     ) => {
-        if (!VAMOS_CONTRACT_ADDRESS) {
-            throw new Error("VAMOS_CONTRACT_ADDRESS is not configured");
-        }
 
         return writeContract({
             address: VAMOS_CONTRACT_ADDRESS,
@@ -60,10 +57,6 @@ export function usePlacePrediction() {
         outcomeId: bigint,
         amount: bigint
     ) => {
-        if (!VAMOS_CONTRACT_ADDRESS) {
-            throw new Error("VAMOS_CONTRACT_ADDRESS is not configured");
-        }
-
         return writeContract({
             address: VAMOS_CONTRACT_ADDRESS,
             abi: VamosAbi,
@@ -95,10 +88,6 @@ export function useClaimWinnings() {
         });
 
     const claimWinnings = async (marketId: bigint) => {
-        if (!VAMOS_CONTRACT_ADDRESS) {
-            throw new Error("VAMOS_CONTRACT_ADDRESS is not configured");
-        }
-
         return writeContract({
             address: VAMOS_CONTRACT_ADDRESS,
             abi: VamosAbi,
@@ -129,10 +118,6 @@ export function useClaimRefund() {
         });
 
     const claimRefund = async (marketId: bigint) => {
-        if (!VAMOS_CONTRACT_ADDRESS) {
-            throw new Error("VAMOS_CONTRACT_ADDRESS is not configured");
-        }
-
         return writeContract({
             address: VAMOS_CONTRACT_ADDRESS,
             abi: VamosAbi,
@@ -163,10 +148,6 @@ export function useResolveMarket() {
         });
 
     const resolveMarket = async (marketId: bigint, winningOutcome: bigint) => {
-        if (!VAMOS_CONTRACT_ADDRESS) {
-            throw new Error("VAMOS_CONTRACT_ADDRESS is not configured");
-        }
-
         return writeContract({
             address: VAMOS_CONTRACT_ADDRESS,
             abi: VamosAbi,
