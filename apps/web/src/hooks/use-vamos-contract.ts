@@ -1,10 +1,11 @@
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useAccount } from "wagmi";
-import { VamosAbi } from "@/abis/VamosAbi";
+import { VamosAbi } from "@/abis/vamosAbi";
 import { ERC20Abi } from "@/abis/erc20Abi";
 import { Address } from "viem";
 
 // Vamos contract address
 const VAMOS_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VAMOS_CONTRACT_ADDRESS as Address;
+const VAMOS_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_VAMOS_TOKEN_ADDRESS as Address;
 
 /**
  * Hook to create a new market
