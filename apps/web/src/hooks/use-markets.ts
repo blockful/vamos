@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { formatUnits } from "viem";
 
 // Types for the GraphQL response
 interface Bet {
@@ -52,26 +53,58 @@ interface MarketsResponse {
 // GraphQL query
 const MARKETS_QUERY = `
   query Markets {
-    marketss {
-      items {
-        question
-        status
-        totalPool
-        createdAt
-        id
-        outcomes {
-          items {
-            totalAmount
-            description
-            outcomeIndex
-          }
+  marketss(orderBy: "createdAt", orderDirection: "desc") {
+    items {
+      question
+      status
+      totalPool
+      createdAt
+      id
+      creator
+      judge
+      outcomes {
+        items {
+          totalAmount
+          description
+          outcomeIndex
         }
       }
     }
   }
+}
 `;
 
 const API_URL = process.env.NEXT_PUBLIC_GRAPHQL_API_URL as string;
+
+/**
+ * Helper function to format time ago from timestamp
+ */
+function formatTimeAgo(timestamp: number): string {
+    const now = Math.floor(Date.now() / 1000); // Current time in seconds
+    const diff = now - timestamp;
+
+    if (diff < 60) {
+        return "just now";
+    } else if (diff < 3600) {
+        const minutes = Math.floor(diff / 60);
+        return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+    } else if (diff < 86400) {
+        const hours = Math.floor(diff / 3600);
+        return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+    } else if (diff < 604800) {
+        const days = Math.floor(diff / 86400);
+        return `${days} day${days > 1 ? "s" : ""} ago`;
+    } else if (diff < 2592000) {
+        const weeks = Math.floor(diff / 604800);
+        return `${weeks} week${weeks > 1 ? "s" : ""} ago`;
+    } else if (diff < 31536000) {
+        const months = Math.floor(diff / 2592000);
+        return `${months} month${months > 1 ? "s" : ""} ago`;
+    } else {
+        const years = Math.floor(diff / 31536000);
+        return `${years} year${years > 1 ? "s" : ""} ago`;
+    }
+}
 
 /**
  * Hook to fetch markets from the indexer API
@@ -97,10 +130,8 @@ export function useMarkets() {
             const data: { data: MarketsResponse } = await response.json();
             return data.data.marketss.items;
         },
-        // Refetch every 30 seconds to get updates
-        refetchInterval: 30000,
-        // Keep previous data while refetching
-        staleTime: 10000,
+        refetchInterval: 10000, // Refetch every 10 seconds
+        staleTime: 5000, // Consider data fresh for 5 seconds
     });
 }
 
@@ -162,10 +193,9 @@ export function useMarket(marketId: string) {
             const data: { data: { markets: Market } } = await response.json();
             return data.data.markets || null;
         },
-        // Refetch every 30 seconds to get updates
-        refetchInterval: 30000,
-        // Keep previous data while refetching
-        staleTime: 10000,
+        // Only refetch manually or on mount
+        refetchInterval: 10000, // Refetch every 10 seconds
+        staleTime: 5000, // Consider data fresh for 5 seconds
         enabled: !!marketId, // Only run if marketId exists
     });
 }
@@ -217,10 +247,9 @@ export function useOutcome(outcomeId: string) {
             const data: { data: { outcomes: Outcome } } = await response.json();
             return data.data.outcomes || null;
         },
-        // Refetch every 30 seconds to get updates
-        refetchInterval: 30000,
-        // Keep previous data while refetching
-        staleTime: 10000,
+        // Only refetch manually or on mount
+        refetchInterval: 10000, // Refetch every 10 seconds
+        staleTime: 5000, // Consider data fresh for 5 seconds
         enabled: !!outcomeId, // Only run if outcomeId exists
     });
 }
@@ -229,11 +258,11 @@ export function useOutcome(outcomeId: string) {
  * Helper function to transform API market to UI format
  */
 export function transformMarketForUI(market: Market) {
-    const totalPool = parseFloat(market.totalPool);
+    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), 18));
 
     // Calculate percentages for each outcome
     const options = market.outcomes.items.map((outcome) => {
-        const amount = parseFloat(outcome.totalAmount);
+        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
 
         return {
@@ -261,6 +290,9 @@ export function transformMarketForUI(market: Market) {
         volume: totalPool,
         icon: "🎯", // You can customize this based on market type
         createdAt: market.createdAt,
+        creator: market.creator,
+        judge: market.judge,
+        timeAgo: market.createdAt ? formatTimeAgo(market.createdAt) : "Unknown",
         options: options.map((opt, index) => ({
             ...opt,
             color: colors[index % colors.length],
@@ -272,11 +304,11 @@ export function transformMarketForUI(market: Market) {
  * Helper function to transform API market to detailed UI format for market details page
  */
 export function transformMarketForDetailsUI(market: Market) {
-    const totalPool = parseFloat(market.totalPool);
+    const totalPool = parseFloat(formatUnits(BigInt(market.totalPool), 18));
 
     // Calculate percentages for each outcome
     const options = market.outcomes.items.map((outcome) => {
-        const amount = parseFloat(outcome.totalAmount);
+        const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
 
         return {
@@ -315,13 +347,12 @@ export function transformMarketForDetailsUI(market: Market) {
  * Helper function to transform API outcome to UI format for option details page
  */
 export function transformOutcomeForUI(outcome: Outcome) {
-    const totalAmount = parseFloat(outcome.totalAmount);
+    const totalAmount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
 
-    // Transform bets for UI
+    // Transform bets for UI - keep full address for ENS resolution
     const bets = outcome.bets?.items.map((bet) => ({
-        user: `User ${bet.user.slice(0, 6)}...${bet.user.slice(-4)}`,
-        address: `${bet.user.slice(0, 6)}...${bet.user.slice(-4)}`,
-        amount: parseFloat(bet.amount),
+        address: bet.user, // Keep full address for ENS resolution
+        amount: parseFloat(formatUnits(BigInt(bet.amount), 18)),
         timestamp: bet.lastUpdated * 1000, // Convert to milliseconds
         avatar: null, // Avatar is not available from API, will fallback to /avatar.png
     })) || [];

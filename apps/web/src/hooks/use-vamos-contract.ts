@@ -1,5 +1,6 @@
-import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useAccount } from "wagmi";
 import { VamosAbi } from "@/abis/vamosAbi";
+import { ERC20Abi } from "@/abis/erc20Abi";
 import { Address } from "viem";
 
 // Vamos contract address
@@ -61,8 +62,7 @@ export function usePlacePrediction() {
             address: VAMOS_CONTRACT_ADDRESS,
             abi: VamosAbi,
             functionName: "placePrediction",
-            // args: [marketId, outcomeId, amount],
-            args: [1n, 0n, 10n],
+            args: [marketId, outcomeId, amount],
         });
     };
 
@@ -163,6 +163,53 @@ export function useResolveMarket() {
         isConfirmed,
         error,
         hash,
+    };
+}
+
+/**
+ * Hook to handle ERC20 token approval for the Vamos contract
+ */
+export function useTokenApproval() {
+    const { address: userAddress } = useAccount();
+    const { data: hash, writeContract, isPending, error } = useWriteContract();
+
+    const { isLoading: isConfirming, isSuccess: isConfirmed } =
+        useWaitForTransactionReceipt({
+            hash,
+        });
+
+    // Read current allowance
+    const {
+        data: currentAllowance,
+        refetch: refetchAllowance,
+    } = useReadContract({
+        address: VAMOS_TOKEN_ADDRESS,
+        abi: ERC20Abi,
+        functionName: "allowance",
+        args: userAddress ? [userAddress, VAMOS_CONTRACT_ADDRESS] : undefined,
+        query: {
+            enabled: !!userAddress,
+        },
+    });
+
+    const approve = async (amount: bigint) => {
+        return writeContract({
+            address: VAMOS_TOKEN_ADDRESS,
+            abi: ERC20Abi,
+            functionName: "approve",
+            args: [VAMOS_CONTRACT_ADDRESS, amount],
+        });
+    };
+
+    return {
+        currentAllowance: currentAllowance ?? BigInt(0),
+        approve,
+        isPending,
+        isConfirming,
+        isConfirmed,
+        error,
+        hash,
+        refetchAllowance,
     };
 }
 

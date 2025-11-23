@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { sdk } from "@farcaster/frame-sdk";
 import type { Connector } from "wagmi";
+import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
 
 export default function Home() {
   const { context, isMiniAppReady } = useMiniApp();
@@ -17,6 +18,7 @@ export default function Home() {
   // Wallet connection hooks
   const { address, isConnected, isConnecting } = useAccount();
   const { connect, connectors } = useConnect();
+  const { data: ensName } = useEnsName(address);
 
   // Auto-connect wallet when miniapp is ready (only once)
   // Only auto-connect Farcaster if in Farcaster context
@@ -115,12 +117,6 @@ export default function Home() {
       return "💳";
     }
     return "🔗";
-  };
-
-  // Format wallet address to show first 6 and last 4 characters
-  const formatAddress = (address: string) => {
-    if (!address || address.length < 10) return address;
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   if (!isMiniAppReady) {
@@ -230,7 +226,7 @@ export default function Home() {
                 <div className="bg-gray-50 rounded-lg p-4 text-center">
                   <p className="text-xs text-gray-500 mb-1">Wallet Address</p>
                   <p className="text-sm font-mono text-gray-700">
-                    {formatAddress(address)}
+                    {formatAddressOrEns(address, ensName, true)}
                   </p>
                 </div>
               </div>

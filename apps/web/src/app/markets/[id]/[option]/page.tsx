@@ -10,8 +10,11 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { useState, useEffect } from "react";
-import { usePlacePrediction } from "@/hooks/use-vamos-contract";
+import { useState, useEffect, useMemo } from "react";
+import {
+  usePlacePrediction,
+  useTokenApproval,
+} from "@/hooks/use-vamos-contract";
 import { useMarket, transformOutcomeForUI } from "@/hooks/use-markets";
 import {
   LineChart,
@@ -22,20 +25,38 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { parseUnits } from "viem";
+import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
+import { formatCurrency } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { getFirstSentence } from "@/app/helpers/getFirstSentence";
 
 export default function OptionDetails() {
   const { isMiniAppReady } = useMiniApp();
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const marketId = params.id as string;
   const optionIndex = parseInt(params.option as string);
   const [betAmount, setBetAmount] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(true);
   const [isExiting, setIsExiting] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [needsApproval, setNeedsApproval] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const { placePrediction, isPending, isConfirming, isConfirmed, error } =
     usePlacePrediction();
+
+  const {
+    currentAllowance,
+    approve,
+    isPending: isApprovePending,
+    isConfirming: isApproveConfirming,
+    isConfirmed: isApproveConfirmed,
+    error: approveError,
+    refetchAllowance,
+  } = useTokenApproval();
 
   // Fetch market data to get the outcome
   const {
@@ -48,11 +69,89 @@ export default function OptionDetails() {
   const outcomeData = marketData?.outcomes.items[optionIndex];
   const option = outcomeData ? transformOutcomeForUI(outcomeData) : null;
 
+  // Get all unique addresses from bets for ENS resolution
+  const betAddresses = useMemo(() => {
+    return option?.bets.map((bet) => bet.address) || [];
+  }, [option?.bets]);
+
+  // Fetch ENS names for all bet addresses
+  const { data: ensNames } = useEnsNames(betAddresses);
+
+  // Show error toast when errors occur
+  useEffect(() => {
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Transaction Error",
+        description: getFirstSentence(error.message),
+      });
+    }
+  }, [error, toast]);
+
+  useEffect(() => {
+    if (approveError) {
+      toast({
+        variant: "destructive",
+        title: "Approval Error",
+        description: getFirstSentence(approveError.message),
+      });
+    }
+  }, [approveError, toast]);
+
   useEffect(() => {
     if (isConfirmed) {
       setShowConfirmation(true);
+      toast({
+        title: "Bet Placed Successfully!",
+        description: `Your bet of $${betAmount} has been confirmed.`,
+      });
     }
-  }, [isConfirmed]);
+  }, [isConfirmed, betAmount, toast]);
+
+  // Refetch allowance and proceed with prediction after approval
+  useEffect(() => {
+    if (isApproveConfirmed && needsApproval) {
+      // After approval, wait a moment for the blockchain state to update, then refetch and place prediction
+      const placePredictionAfterApproval = async () => {
+        try {
+          setIsProcessing(true);
+          // Refetch allowance and wait for it
+          await refetchAllowance();
+
+          const amountInWei = parseUnits(betAmount.toString(), 18);
+          setNeedsApproval(false);
+
+          // Now place the prediction
+          await placePrediction(
+            BigInt(marketId),
+            BigInt(optionIndex),
+            amountInWei
+          );
+        } catch (err) {
+          console.error("Error placing prediction after approval:", err);
+          setNeedsApproval(false); // Reset state on error
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description:
+              "Failed to place prediction after approval. Please try again.",
+          });
+        } finally {
+          setIsProcessing(false);
+        }
+      };
+      placePredictionAfterApproval();
+    }
+  }, [
+    isApproveConfirmed,
+    needsApproval,
+    refetchAllowance,
+    betAmount,
+    marketId,
+    optionIndex,
+    placePrediction,
+    toast,
+  ]);
 
   const handleIncrement = () => setBetAmount((prev) => prev + 1);
   const handleDecrement = () => setBetAmount((prev) => Math.max(1, prev - 1));
@@ -81,6 +180,11 @@ export default function OptionDetails() {
   };
 
   const handleConfirmBet = async () => {
+    // Prevent multiple clicks
+    if (isProcessing) {
+      return;
+    }
+
     // Ensure minimum value before confirming
     if (betAmount < 1) {
       setBetAmount(1);
@@ -88,13 +192,51 @@ export default function OptionDetails() {
     }
 
     try {
-      await placePrediction(
-        BigInt(marketId),
-        BigInt(optionIndex),
-        BigInt(betAmount)
-      );
+      setIsProcessing(true);
+
+      // Convert bet amount to token units (assuming 18 decimals for ERC20)
+      const amountInWei = parseUnits(betAmount.toString(), 18);
+
+      // If we're in approval flow, wait for it to complete
+      if (needsApproval && (isApprovePending || isApproveConfirming)) {
+        setIsProcessing(false);
+        return;
+      }
+
+      // If approval was just confirmed, let the useEffect handle the prediction
+      if (needsApproval && isApproveConfirmed) {
+        setIsProcessing(false);
+        return;
+      }
+
+      // Refetch the latest allowance before checking
+      const { data: latestAllowance } = await refetchAllowance();
+      const currentAllowanceValue = latestAllowance ?? currentAllowance;
+
+      // Check if approval is needed
+      if (currentAllowanceValue < amountInWei) {
+        setNeedsApproval(true);
+        await approve(amountInWei);
+        // Wait for approval confirmation before proceeding
+        return;
+      }
+
+      // If already approved, place prediction
+      setNeedsApproval(false);
+      await placePrediction(BigInt(marketId), BigInt(optionIndex), amountInWei);
     } catch (err) {
       console.error("Error placing prediction:", err);
+      setNeedsApproval(false); // Reset state on error
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          err instanceof Error
+            ? err.message
+            : "Failed to place bet. Please try again.",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -147,9 +289,11 @@ export default function OptionDetails() {
   };
 
   return (
-    <main className={`fixed inset-0 z-50 w-full h-screen max-h-screen overflow-y-auto bg-[#FCFDF5] flex flex-col ${
-      isExiting ? 'animate-slide-out-to-right' : 'animate-slide-in-from-right'
-    }`}>
+    <main
+      className={`fixed inset-0 z-50 w-full h-screen max-h-screen overflow-y-auto bg-[#FCFDF5] flex flex-col ${
+        isExiting ? "animate-slide-out-to-right" : "animate-slide-in-from-right"
+      }`}
+    >
       {/* Header - Fixed at top */}
       <div className="sticky top-0 z-40 flex flex-col bg-[#FCFDF5] p-6 border-b-2 border-[#111909] flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
@@ -174,7 +318,9 @@ export default function OptionDetails() {
 
         <div className="flex-1">
           <h1 className="text-2xl font-semibold text-black">{option.name}</h1>
-          <p className="text-lg font-semibold text-black">${option.totalAmount}</p>
+          <p className="text-lg font-semibold text-black">
+            ${option.totalAmount}
+          </p>
         </div>
       </div>
 
@@ -201,7 +347,10 @@ export default function OptionDetails() {
                 />
                 <Tooltip
                   formatter={(value) => `${value}%`}
-                  contentStyle={{ backgroundColor: "#FCFDF5", border: "2px solid #111909" }}
+                  contentStyle={{
+                    backgroundColor: "#FCFDF5",
+                    border: "2px solid #111909",
+                  }}
                   labelStyle={{ color: "#111909" }}
                 />
                 <Line
@@ -285,7 +434,9 @@ export default function OptionDetails() {
             <>
               <DrawerHeader className="border-b-2 border-[#111909]">
                 <DrawerTitle className="text-black">Place bet</DrawerTitle>
-                <p className="text-2xl font-bold text-black mt-2">{option.name}</p>
+                <p className="text-2xl font-bold text-black mt-2">
+                  {option.name}
+                </p>
               </DrawerHeader>
 
               <div className="p-6 space-y-6 pb-32">

@@ -27,7 +27,17 @@ const config = createConfig({
   },
 });
 
-const queryClient = new QueryClient();
+// Create QueryClient outside component to avoid recreating on every render
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Reduce unnecessary refetching
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: 1,
+    },
+  },
+});
 
 export default function FrameWalletProvider({
   children,

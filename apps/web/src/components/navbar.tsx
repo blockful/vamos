@@ -1,11 +1,17 @@
 "use client";
 
 import { LogOut } from "lucide-react";
-import { useAccount, useDisconnect, useBalance, useChainId } from "wagmi";
+import { useAccount, useDisconnect, useReadContract } from "wagmi";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { useEffect, useState, useRef } from "react";
+import { ERC20Abi } from "@/abis/erc20Abi";
+import { formatUnits } from "viem";
+import { Address } from "viem";
+
+const VAMOS_TOKEN_ADDRESS = process.env
+  .NEXT_PUBLIC_VAMOS_TOKEN_ADDRESS as Address;
 
 export function Navbar() {
   const router = useRouter();
@@ -13,22 +19,33 @@ export function Navbar() {
   const { disconnect } = useDisconnect();
   const { context } = useMiniApp();
   const [isOpen, setIsOpen] = useState(false);
-  const chainId = useChainId();
 
   // Only consider connected if we have a valid address
   const isConnected = wagmiIsConnected && !!address;
 
-  // Get wallet balance
-  const { data: balanceData, isLoading: isLoadingBalance } = useBalance({
-    address: address,
-    chainId: chainId,
+  // Get VAMOS token balance
+  const { data: tokenBalance, isLoading: isLoadingBalance } = useReadContract({
+    address: VAMOS_TOKEN_ADDRESS,
+    abi: ERC20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address,
+    },
   });
 
-  // Use actual balance data or fallback
-  const balance = balanceData || {
-    formatted: "0.00",
-    symbol: "ETH",
-  };
+  // Get token decimals
+  const { data: tokenDecimals } = useReadContract({
+    address: VAMOS_TOKEN_ADDRESS,
+    abi: ERC20Abi,
+    functionName: "decimals",
+  });
+
+  // Format the token balance
+  const formattedBalance =
+    tokenBalance && tokenDecimals
+      ? formatUnits(tokenBalance as bigint, tokenDecimals as number)
+      : "0.00";
 
   // Debug logs
   useEffect(() => {
@@ -187,9 +204,7 @@ export function Navbar() {
               <span className="text-lg font-bold text-[#111909]">
                 {isLoadingBalance
                   ? "..."
-                  : balance
-                  ? `${formatBalance(balance.formatted)} ${balance.symbol}`
-                  : "0.00 ETH"}
+                  : `${formatBalance(formattedBalance)} USDC`}
               </span>
             </div>
           </div>
