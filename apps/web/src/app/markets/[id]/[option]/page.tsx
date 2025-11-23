@@ -25,7 +25,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { parseUnits } from "viem";
-import { useEnsNames } from "@/hooks/use-ens";
+import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
 import { useToast } from "@/hooks/use-toast";
 import { getFirstSentence } from "@/app/helpers/getFirstSentence";
 
@@ -408,7 +408,7 @@ export default function OptionDetails() {
 
                 <div className="flex-1">
                   <p className="font-semibold text-black">
-                    {formatAddressOrEns(bet.address)}
+                    {formatAddressOrEns(bet.address, ensNames?.[bet.address])}
                   </p>
                   <p className="text-lg font-bold text-black">${bet.amount}</p>
                 </div>
