@@ -23,19 +23,19 @@ import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
 
 export default function Home() {
   const { isMiniAppReady } = useMiniApp();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState<string>("");
   const [judgeInput, setJudgeInput] = useState<string>("");
 
-  // Fetch markets from API
+  // Fetch markets from API filtered by current chain
   const {
     data: apiMarkets,
     isLoading: isLoadingMarkets,
     error: marketsError,
     refetch,
-  } = useMarkets();
+  } = useMarkets(chain?.id);
 
   const {
     createMarket,

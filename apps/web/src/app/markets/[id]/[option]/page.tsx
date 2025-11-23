@@ -28,12 +28,14 @@ import { parseUnits } from "viem";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
 import { useToast } from "@/hooks/use-toast";
 import { getFirstSentence } from "@/app/helpers/getFirstSentence";
+import { useAccount } from "wagmi";
 
 export default function OptionDetails() {
   const { isMiniAppReady } = useMiniApp();
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { chain } = useAccount();
   const marketId = params.id as string;
   const optionIndex = parseInt(params.option as string);
   const [betAmount, setBetAmount] = useState(0);
@@ -56,16 +58,16 @@ export default function OptionDetails() {
     refetchAllowance,
   } = useTokenApproval();
 
-  // Construct outcome ID from market ID and option index
-  // Format: marketId-outcomeIndex (e.g., "1-0", "1-1")
-  const outcomeId = `${marketId}-${optionIndex}`;
+  // Construct outcome ID with chainId for indexer query
+  // Format: chainId-marketId-outcomeIndex (e.g., "42220-1-0", "8453-1-1")
+  const outcomeId = chain?.id ? `${chain.id}-${marketId}-${optionIndex}` : undefined;
 
   // Fetch outcome data (showing all bets ordered by amount)
   const {
     data: outcomeData,
     isLoading: isLoadingOutcome,
     error: outcomeError,
-  } = useOutcome(outcomeId);
+  } = useOutcome(outcomeId || "");
 
   // Transform outcome data for UI
   const option = outcomeData ? transformOutcomeForUI(outcomeData) : null;

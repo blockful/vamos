@@ -26,6 +26,8 @@ interface Outcome {
 
 interface Market {
     id: string;
+    marketId: string;
+    chainId: number;
     question: string;
     status: string;
     totalPool: string;
@@ -53,17 +55,19 @@ interface MarketsResponse {
 }
 
 
-// GraphQL query
+// GraphQL query with chainId filter
 const MARKETS_QUERY = `
-  query Markets {
-  marketss(orderBy: "createdAt", orderDirection: "desc") {
+  query Markets($chainId: Int!) {
+  marketss(where: { chainId: $chainId }, orderBy: "createdAt", orderDirection: "desc") {
     items {
+      id
+      marketId
+      chainId
       winningOutcome
       question
       status
       totalPool
       createdAt
-      id
       creator
       judge
       outcomes {
@@ -155,11 +159,16 @@ export const getColorForOption = (optionName: string): string => {
 
 /**
  * Hook to fetch markets from the indexer API
+ * @param chainId - The chain ID to filter markets by
  */
-export function useMarkets() {
+export function useMarkets(chainId?: number) {
     return useQuery({
-        queryKey: ["markets"],
+        queryKey: ["markets", chainId],
         queryFn: async (): Promise<Market[]> => {
+            if (!chainId) {
+                return [];
+            }
+
             const response = await fetch(API_URL, {
                 method: "POST",
                 headers: {
@@ -167,6 +176,7 @@ export function useMarkets() {
                 },
                 body: JSON.stringify({
                     query: MARKETS_QUERY,
+                    variables: { chainId },
                 }),
             });
 
@@ -179,12 +189,13 @@ export function useMarkets() {
         },
         refetchInterval: 10000, // Refetch every 10 seconds
         staleTime: 5000, // Consider data fresh for 5 seconds
+        enabled: !!chainId, // Only run if chainId is provided
     });
 }
 
 /**
  * Hook to fetch a specific market by ID
- * @param marketId - The ID of the market to fetch
+ * @param marketId - The composite ID of the market (chainId-marketId)
  * @param userAddress - Optional user address to filter bets for "Your bet" display
  */
 export function useMarket(marketId: string, userAddress?: string) {
@@ -195,6 +206,8 @@ export function useMarket(marketId: string, userAddress?: string) {
                 query Market($id: String!, $userAddress: String) {
                     markets(id: $id) {
                         id
+                        marketId
+                        chainId
                         winningOutcome
                         judge
                         status

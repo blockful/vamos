@@ -5,13 +5,17 @@ import { MarketStatus } from "./constants";
 
 // Helper function to handle MarketCreated for all contracts
 const handleMarketCreated = async ({ event, context }: any) => {
-  const { db } = context;
+  const { db, chain } = context;
   
   const marketId = event.args.marketId.toString();
+  const chainId = chain.id;
+  const compositeId = `${chainId}-${marketId}`;
   
   // Insert the market
   await db.insert(markets).values({
-    id: marketId,
+    id: compositeId,
+    marketId: marketId,
+    chainId: chainId,
     creator: event.args.creator,
     judge: event.args.judge,
     question: event.args.question,
@@ -30,8 +34,9 @@ const handleMarketCreated = async ({ event, context }: any) => {
   const outcomeDescriptions: string[] = event.args.outcomes;
   for (let i = 0; i < outcomeDescriptions.length; i++) {
     await db.insert(outcomes).values({
-      id: `${marketId}-${i}`,
-      marketId: marketId,
+      id: `${chainId}-${marketId}-${i}`,
+      marketId: compositeId,
+      chainId: chainId,
       outcomeIndex: i,
       description: outcomeDescriptions[i],
       totalAmount: 0n,
@@ -41,23 +46,26 @@ const handleMarketCreated = async ({ event, context }: any) => {
 
 // Helper function to handle PredictionPlaced for all contracts
 const handlePredictionPlaced = async ({ event, context }: any) => {
-  const { db } = context;
+  const { db, chain } = context;
   
   const marketId = event.args.marketId.toString();
+  const chainId = chain.id;
   const user = event.args.user;
   const outcomeIndex = Number(event.args.outcomeId);
   const amount = event.args.amount;
   
-  const outcomeId = `${marketId}-${outcomeIndex}`;
-  const betId = `${marketId}-${user}-${outcomeIndex}`;
+  const compositeId = `${chainId}-${marketId}`;
+  const outcomeId = `${chainId}-${marketId}-${outcomeIndex}`;
+  const betId = `${chainId}-${marketId}-${user}-${outcomeIndex}`;
   
   // Upsert bet: insert if new, or update by adding to amount if exists
   await db
     .insert(bets)
     .values({
       id: betId,
-      marketId,
+      marketId: compositeId,
       outcomeId,
+      chainId: chainId,
       user,
       outcomeIndex,
       amount,
@@ -70,7 +78,7 @@ const handlePredictionPlaced = async ({ event, context }: any) => {
   
   // Update market totalPool by adding the new amount
   await db
-    .update(markets, { id: marketId })
+    .update(markets, { id: compositeId })
     .set((row: typeof markets.$inferSelect) => ({
       totalPool: row.totalPool + amount,
     }));
@@ -85,9 +93,11 @@ const handlePredictionPlaced = async ({ event, context }: any) => {
 
 // Helper function to handle MarketResolved for all contracts
 const handleMarketResolved = async ({ event, context }: any) => {
-  const { db, client } = context;
+  const { db, client, chain } = context;
   
   const marketId = event.args.marketId.toString();
+  const chainId = chain.id;
+  const compositeId = `${chainId}-${marketId}`;
   const winningOutcome = Number(event.args.winningOutcome);
   
   // Fetch market data from contract to get poolAfterFees and other resolution details
@@ -99,7 +109,7 @@ const handleMarketResolved = async ({ event, context }: any) => {
   });
   
   await db
-    .update(markets, { id: marketId })
+    .update(markets, { id: compositeId })
     .set({
       status: MarketStatus.RESOLVED,
       winningOutcome,
@@ -112,10 +122,14 @@ const handleMarketResolved = async ({ event, context }: any) => {
 
 // Helper function to handle MarketPaused for all contracts
 const handleMarketPaused = async ({ event, context }: any) => {
-  const { db } = context;
+  const { db, chain } = context;
+  
+  const marketId = event.args.marketId.toString();
+  const chainId = chain.id;
+  const compositeId = `${chainId}-${marketId}`;
   
   await db
-    .update(markets, { id: event.args.marketId.toString() })
+    .update(markets, { id: compositeId })
     .set({
       status: MarketStatus.PAUSED,
     });

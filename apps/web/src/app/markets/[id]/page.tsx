@@ -41,8 +41,11 @@ export default function MarketDetails() {
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
   const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
   const marketId = parseInt(params.id as string);
-  const { address } = useAccount();
+  const { address, chain } = useAccount();
   const { toast } = useToast();
+
+  // Construct composite ID for indexer query
+  const compositeMarketId = chain?.id ? `${chain.id}-${marketId}` : undefined;
 
   // Fetch market data from API
   const {
@@ -50,7 +53,7 @@ export default function MarketDetails() {
     isLoading,
     error,
     refetch,
-  } = useMarket(marketId.toString());
+  } = useMarket(compositeMarketId || "");
 
   // Pause market hook
   const {
