@@ -16,6 +16,9 @@ interface Outcome {
     id: string;
     outcomeIndex: number;
     totalAmount: string;
+    bets?: {
+        items: Bet[];
+    };
 }
 
 interface Market {
@@ -113,13 +116,8 @@ export function useMarket(marketId: string) {
                     markets(id: $id) {
                         id
                         judge
-                        numOutcomes
-                        noWinners
-                        protocolFeeAmount
-                        poolAfterFees
                         status
                         totalPool
-                        winningOutcome
                         question
                         outcomes {
                             items {
@@ -127,21 +125,21 @@ export function useMarket(marketId: string) {
                                 id
                                 outcomeIndex
                                 totalAmount
+                                bets {
+                                    items {
+                                        id
+                                        amount
+                                        lastUpdated
+                                        marketId
+                                        outcomeId
+                                        outcomeIndex
+                                        user
+                                    }
+                                }
                             }
                         }
                         creator
-                        creatorFeeAmount
-                        bets {
-                            items {
-                                id
-                                amount
-                                lastUpdated
-                                marketId
-                                outcomeId
-                                outcomeIndex
-                                user
-                            }
-                        }
+                       
                     }
                 }
             `;
@@ -169,6 +167,61 @@ export function useMarket(marketId: string) {
         // Keep previous data while refetching
         staleTime: 10000,
         enabled: !!marketId, // Only run if marketId exists
+    });
+}
+
+/**
+ * Hook to fetch a specific outcome by ID
+ */
+export function useOutcome(outcomeId: string) {
+    return useQuery({
+        queryKey: ["outcome", outcomeId],
+        queryFn: async (): Promise<Outcome | null> => {
+            const OUTCOME_QUERY = `
+                query Outcome($id: String!) {
+                    outcomes(id: $id) {
+                        description
+                        totalAmount
+                        id
+                        outcomeIndex
+                        bets {
+                            items {
+                                id
+                                amount
+                                lastUpdated
+                                marketId
+                                outcomeId
+                                outcomeIndex
+                                user
+                            }
+                        }
+                    }
+                }
+            `;
+
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    query: OUTCOME_QUERY,
+                    variables: { id: outcomeId },
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data: { data: { outcomes: Outcome } } = await response.json();
+            return data.data.outcomes || null;
+        },
+        // Refetch every 30 seconds to get updates
+        refetchInterval: 30000,
+        // Keep previous data while refetching
+        staleTime: 10000,
+        enabled: !!outcomeId, // Only run if outcomeId exists
     });
 }
 
@@ -254,6 +307,34 @@ export function transformMarketForDetailsUI(market: Market) {
         status: market.status === "OPEN" ? "Betting Open" : "Betting Closed",
         totalVolume: totalPool,
         options,
+        chartData,
+    };
+}
+
+/**
+ * Helper function to transform API outcome to UI format for option details page
+ */
+export function transformOutcomeForUI(outcome: Outcome) {
+    const totalAmount = parseFloat(outcome.totalAmount);
+
+    // Transform bets for UI
+    const bets = outcome.bets?.items.map((bet) => ({
+        user: `User ${bet.user.slice(0, 6)}...${bet.user.slice(-4)}`,
+        address: `${bet.user.slice(0, 6)}...${bet.user.slice(-4)}`,
+        amount: parseFloat(bet.amount),
+        timestamp: bet.lastUpdated * 1000, // Convert to milliseconds
+    })) || [];
+
+    // Generate simple chart data (can be enhanced with real historical data later)
+    const chartData = Array.from({ length: 8 }, (_, index) => ({
+        timestamp: index + 1,
+        value: totalAmount > 0 ? 50 + Math.random() * 20 : 0, // Mock data for now
+    }));
+
+    return {
+        name: outcome.description,
+        totalAmount,
+        bets,
         chartData,
     };
 }
