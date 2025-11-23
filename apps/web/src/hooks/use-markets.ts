@@ -269,12 +269,12 @@ export function transformMarketForUI(market: Market) {
 
     // Assign colors to options
     const colors = [
-        "bg-green-400",
-        "bg-yellow-200",
-        "bg-pink-300",
-        "bg-purple-300",
-        "bg-blue-300",
-        "bg-red-300",
+        "#A4D18E",
+        "#E3DAA2",
+        "#fbbf24",
+        "#f97316",
+        "#0ea5e9",
+        "#ef4444",
     ];
 
     return {

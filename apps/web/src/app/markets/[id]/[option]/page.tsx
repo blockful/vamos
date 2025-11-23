@@ -442,9 +442,9 @@ export default function OptionDetails() {
         <DrawerContent className="bg-[#FCFDF5] border-t-2 border-[#111909]">
           {!showConfirmation ? (
             <>
-              <DrawerHeader className="border-b-2 border-[#111909]">
-                <DrawerTitle className="text-black">Place bet</DrawerTitle>
-                <p className="text-2xl font-bold text-black mt-2">
+              <DrawerHeader className="border-b-2 border-[#111909] text-center">
+                <DrawerTitle className="text-black text-center">Place bet</DrawerTitle>
+                <p className="text-2xl font-bold text-black mt-2 text-center">
                   {option.name}
                 </p>
               </DrawerHeader>
@@ -483,25 +483,25 @@ export default function OptionDetails() {
                 <div className="flex items-center justify-center gap-3">
                   <button
                     onClick={() => setBetAmount(0)}
-                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                    className="flex-1 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
                   >
                     Reset
                   </button>
                   <button
                     onClick={() => handleQuickAdd(10)}
-                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                    className="flex-1 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
                   >
                     +$10
                   </button>
                   <button
                     onClick={() => handleQuickAdd(20)}
-                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                    className="flex-1 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
                   >
                     +$20
                   </button>
                   <button
                     onClick={() => handleQuickAdd(30)}
-                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                    className="flex-1 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
                   >
                     +$30
                   </button>
@@ -541,8 +541,12 @@ export default function OptionDetails() {
           ) : (
             <>
               <div className="flex flex-col items-center justify-center py-8 space-y-6 px-4">
-                <div className="w-40 h-40 rounded-full bg-gray-300 flex items-center justify-center">
-                  <div className="w-32 h-32 rounded-full bg-gray-400"></div>
+                <div className="w-40 h-40 rounded-full flex items-center justify-center border-2 border-[#111909]">
+                  <img
+                    src="/success-image.png"
+                    alt="Bet confirmation success"
+                    className="w-full h-full object-cover rounded-full"
+                  />
                 </div>
 
                 <div className="text-center">
