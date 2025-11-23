@@ -3,12 +3,7 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useParams, useRouter } from "next/navigation";
 import { Share2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  ChartContainer,
-  ChartStyle,
-  RechartsPrimitive,
-} from "@/components/ui/chart";
-import Image from "next/image";
+import { ChartContainer, RechartsPrimitive } from "@/components/ui/chart";
 import { useState } from "react";
 
 import { useMarket, transformMarketForDetailsUI } from "@/hooks/use-markets";
@@ -24,13 +19,6 @@ export default function MarketDetails() {
   const { data: apiMarket, isLoading, error } = useMarket(marketId.toString());
 
   const market = apiMarket ? transformMarketForDetailsUI(apiMarket) : null;
-
-  console.log({
-    apiMarket,
-    isLoading,
-    error,
-    market,
-  });
 
   // Get the latest percentages from chart data
   const getLatestPercentages = () => {
