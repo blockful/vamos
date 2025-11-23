@@ -148,6 +148,11 @@ export default function Markets() {
     }
   };
 
+  // Sync judgeInput with formik values for ENS resolution
+  useEffect(() => {
+    setJudgeInput(formik.values.judge);
+  }, [formik.values.judge]);
+
   if (!isMiniAppReady || isLoadingMarkets) {
     return (
       <main className="flex-1">
@@ -294,20 +299,18 @@ export default function Markets() {
                       option.outcomeIndex === market.winningOutcome;
 
                     return (
-                      <div
-                        key={index}
-                        className="relative h-8 bg-gray-200 rounded-full overflow-hidden"
-                      >
+                      <>
                         <div
-                          className={`h-full ${
-                            option.color
-                          } flex items-center px-3 transition-all duration-300 ${
-                            market.status === "PAUSED" ? "opacity-70" : ""
+                          className={`h-full flex items-center px-3 transition-all duration-300 ${
+                            market.status === "BETS CLOSED" ? "opacity-70" : ""
                           }`}
-                          style={{ width: `${option.percentage}%` }}
+                          style={{
+                            width: `${option.percentage}%`,
+                            backgroundColor: option.color,
+                          }}
                         />
                         <div className="absolute inset-0 flex items-center px-3 justify-between pointer-events-none">
-                          <span className="text-sm font-normal text-black flex items-center gap-1">
+                          <span className="text-sm font-normal text-black">
                             {isWinner && <span className="text-base">🏆</span>}
                             {option.name}
                           </span>
@@ -315,7 +318,7 @@ export default function Markets() {
                             {option.percentage}%
                           </span>
                         </div>
-                      </div>
+                      </>
                     );
                   })}
                 </div>

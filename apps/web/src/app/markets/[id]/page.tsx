@@ -9,7 +9,6 @@ import {
   DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ChartContainer, RechartsPrimitive } from "@/components/ui/chart";
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +26,7 @@ import { useMarket, transformMarketForDetailsUI } from "@/hooks/use-markets";
 import { formatCurrency } from "@/lib/utils";
 import { useEnsName, formatAddressOrEns } from "@/hooks/use-ens";
 import { usePauseMarket, useResolveMarket } from "@/hooks/use-vamos-contract";
+import { formatTimeAgo } from "@/app/helpers/formatTimeAgo";
 
 export default function MarketDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -72,6 +72,13 @@ export default function MarketDetails() {
   const judgeAddress =
     market?.judge && market.judge.startsWith("0x") ? market.judge : undefined;
   const { data: judgeEnsName } = useEnsName(judgeAddress);
+
+  // Get ENS name for creator if available
+  const creatorAddress =
+    apiMarket?.creator && apiMarket.creator.startsWith("0x")
+      ? apiMarket.creator
+      : undefined;
+  const { data: creatorEnsName } = useEnsName(creatorAddress);
 
   // Get the latest percentages from chart data
   const getLatestPercentages = () => {
@@ -285,7 +292,27 @@ export default function MarketDetails() {
             <h1 className="text-2xl font-semibold text-black mb-2">
               {market.title.replace("Match: ", "Tennis Match: ")}
             </h1>
-            <p className="text-sm text-gray-700">{market.description}</p>
+
+            {/* Market metadata */}
+            <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+              {apiMarket?.createdAt && (
+                <span className="flex items-center">
+                  ⏱️ {formatTimeAgo(apiMarket.createdAt)}
+                </span>
+              )}
+              {creatorAddress && (
+                <span className="flex items-center">
+                  👤 Creator:{" "}
+                  {formatAddressOrEns(creatorAddress, creatorEnsName, true)}
+                </span>
+              )}
+              {judgeAddress && (
+                <span className="flex items-center">
+                  ⚖️ Judge:{" "}
+                  {formatAddressOrEns(judgeAddress, judgeEnsName, true)}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Judge and Volume */}
@@ -386,7 +413,10 @@ export default function MarketDetails() {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-yellow-300" />
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: "#E3DAA2" }}
+              />
               <span className="text-sm font-medium text-black">
                 {market.options[1].name}
               </span>
@@ -402,7 +432,7 @@ export default function MarketDetails() {
               },
               option2: {
                 label: market.options[1].name,
-                color: "#fbbf24",
+                color: "#E3DAA2",
               },
             }}
             className="h-64 w-full"
@@ -448,7 +478,7 @@ export default function MarketDetails() {
               <RechartsPrimitive.Line
                 type="monotone"
                 dataKey="option2"
-                stroke="#fbbf24"
+                stroke="#E3DAA2"
                 strokeWidth={2}
                 dot={false}
                 name={market.options[1].name}
@@ -466,6 +496,7 @@ export default function MarketDetails() {
                 : latestPercentages.option2;
             const totalAmount =
               index === 0 ? totalAmounts.option1 : totalAmounts.option2;
+            const userBet = option.userBet || 0;
 
             const isWinner =
               market.status === "RESOLVED" &&
@@ -479,24 +510,15 @@ export default function MarketDetails() {
                 onClick={() => router.push(`/markets/${marketId}/${index}`)}
                 className={`w-full rounded-2xl overflow-hidden relative h-auto transition-all hover:shadow-lg active:scale-95`}
               >
-                {/* Progress bar background fill */}
+                {/* Colored background for left side and white for right */}
                 <div
                   className="absolute inset-0"
                   style={{
-                    width: `${percentage}%`,
-                    backgroundColor: index === 0 ? "#A4D18E" : "#fbbf24",
-                  }}
-                />
-
-                {/* White background for content */}
-                <div className="absolute inset-0 bg-white" />
-
-                {/* Progress overlay */}
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    width: `${percentage}%`,
-                    backgroundColor: index === 0 ? "#A4D18E" : "#fbbf24",
+                    background: `linear-gradient(to right, ${
+                      index === 0 ? "#A4D18E" : "#E3DAA2"
+                    } 0%, ${
+                      index === 0 ? "#A4D18E" : "#E3DAA2"
+                    } 40%, white 40%, white 100%)`,
                   }}
                 />
 
@@ -521,7 +543,7 @@ export default function MarketDetails() {
                           Your bet
                         </p>
                         <p className="text-sm font-semibold text-black">
-                          $0.00
+                          ${formatCurrency(userBet)}
                         </p>
                       </div>
                     </div>

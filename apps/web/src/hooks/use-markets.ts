@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatUnits } from "viem";
+import { formatTimeAgo } from "@/app/helpers/formatTimeAgo";
 
 // Types for the GraphQL response
 interface Bet {
@@ -78,36 +79,6 @@ const MARKETS_QUERY = `
 const API_URL = process.env.NEXT_PUBLIC_GRAPHQL_API_URL as string;
 
 /**
- * Helper function to format time ago from timestamp
- */
-function formatTimeAgo(timestamp: number): string {
-    const now = Math.floor(Date.now() / 1000); // Current time in seconds
-    const diff = now - timestamp;
-
-    if (diff < 60) {
-        return "just now";
-    } else if (diff < 3600) {
-        const minutes = Math.floor(diff / 60);
-        return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
-    } else if (diff < 86400) {
-        const hours = Math.floor(diff / 3600);
-        return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-    } else if (diff < 604800) {
-        const days = Math.floor(diff / 86400);
-        return `${days} day${days > 1 ? "s" : ""} ago`;
-    } else if (diff < 2592000) {
-        const weeks = Math.floor(diff / 604800);
-        return `${weeks} week${weeks > 1 ? "s" : ""} ago`;
-    } else if (diff < 31536000) {
-        const months = Math.floor(diff / 2592000);
-        return `${months} month${months > 1 ? "s" : ""} ago`;
-    } else {
-        const years = Math.floor(diff / 31536000);
-        return `${years} year${years > 1 ? "s" : ""} ago`;
-    }
-}
-
-/**
  * Hook to fetch markets from the indexer API
  */
 export function useMarkets() {
@@ -138,13 +109,15 @@ export function useMarkets() {
 
 /**
  * Hook to fetch a specific market by ID
+ * @param marketId - The ID of the market to fetch
+ * @param userAddress - Optional user address to filter bets for "Your bet" display
  */
-export function useMarket(marketId: string) {
+export function useMarket(marketId: string, userAddress?: string) {
     return useQuery({
-        queryKey: ["market", marketId],
+        queryKey: ["market", marketId, userAddress],
         queryFn: async (): Promise<Market | null> => {
             const MARKET_QUERY = `
-                query Market($id: String!) {
+                query Market($id: String!, $userAddress: String) {
                     markets(id: $id) {
                         id
                         winningOutcome
@@ -158,7 +131,7 @@ export function useMarket(marketId: string) {
                                 id
                                 outcomeIndex
                                 totalAmount
-                                bets {
+                                bets(where: {user: $userAddress}) {
                                     items {
                                         id
                                         amount
@@ -172,9 +145,9 @@ export function useMarket(marketId: string) {
                             }
                         }
                         creator
-                       
+                        createdAt
                     }
-                }
+                }   
             `;
 
             const response = await fetch(API_URL, {
@@ -184,7 +157,10 @@ export function useMarket(marketId: string) {
                 },
                 body: JSON.stringify({
                     query: MARKET_QUERY,
-                    variables: { id: marketId },
+                    variables: {
+                        id: marketId,
+                        userAddress: userAddress?.toLowerCase() // Normalize address to lowercase
+                    },
                 }),
             });
 
@@ -216,15 +192,15 @@ export function useOutcome(outcomeId: string) {
                         totalAmount
                         id
                         outcomeIndex
-                        bets {
-                            items {
-                                id
-                                amount
-                                lastUpdated
-                                marketId
-                                outcomeId
-                                outcomeIndex
-                                user
+                        bets(orderBy: "amount", orderDirection: "desc") {
+                        items {
+                            id
+                            amount
+                            lastUpdated
+                            marketId
+                            outcomeId
+                            outcomeIndex
+                            user
                             }
                         }
                     }
@@ -257,6 +233,22 @@ export function useOutcome(outcomeId: string) {
 }
 
 /**
+ * Helper function to calculate user's bet amount for a specific outcome
+ */
+export function calculateUserBetForOutcome(outcome: Outcome): number {
+    if (!outcome.bets?.items || outcome.bets.items.length === 0) {
+        return 0;
+    }
+
+    // Sum all bets from the user (should typically be just one per outcome)
+    const totalUserBet = outcome.bets.items.reduce((sum, bet) => {
+        return sum + parseFloat(formatUnits(BigInt(bet.amount), 18));
+    }, 0);
+
+    return totalUserBet;
+}
+
+/**
  * Helper function to transform API market to UI format
  */
 export function transformMarketForUI(market: Market) {
@@ -266,6 +258,7 @@ export function transformMarketForUI(market: Market) {
     const options = market.outcomes.items.map((outcome) => {
         const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
+        const userBet = calculateUserBetForOutcome(outcome);
 
         return {
             id: outcome.outcomeIndex,
@@ -273,17 +266,18 @@ export function transformMarketForUI(market: Market) {
             percentage,
             totalAmount: amount,
             outcomeIndex: outcome.outcomeIndex,
+            userBet,
         };
     });
 
     // Assign colors to options
     const colors = [
-        "bg-green-400",
-        "bg-yellow-200",
-        "bg-pink-300",
-        "bg-purple-300",
-        "bg-blue-300",
-        "bg-red-300",
+        "#A4D18E",
+        "#E3DAA2",
+        "#fbbf24",
+        "#f97316",
+        "#0ea5e9",
+        "#ef4444",
     ];
 
     return {
@@ -314,12 +308,14 @@ export function transformMarketForDetailsUI(market: Market) {
     const options = market.outcomes.items.map((outcome) => {
         const amount = parseFloat(formatUnits(BigInt(outcome.totalAmount), 18));
         const percentage = totalPool > 0 ? Math.round((amount / totalPool) * 100) : 0;
+        const userBet = calculateUserBetForOutcome(outcome);
 
         return {
             name: outcome.description,
             percentage,
             totalAmount: amount,
             outcomeIndex: outcome.outcomeIndex,
+            userBet,
             bets: [], // Bets will need a separate query if needed
         };
     });
@@ -336,9 +332,6 @@ export function transformMarketForDetailsUI(market: Market) {
     return {
         id: market.id,
         title: market.question,
-        description: market.createdAt
-            ? `Market created at ${new Date(market.createdAt * 1000).toLocaleDateString()}`
-            : "Prediction Market",
         judge: market.judge || "TBD",
         icon: "🎯",
         status: market.status,

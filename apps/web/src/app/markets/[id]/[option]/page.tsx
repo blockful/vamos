@@ -3,7 +3,6 @@ import { useMiniApp } from "@/contexts/miniapp-context";
 import { useParams, useRouter } from "next/navigation";
 import { Share2, ChevronLeft, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Drawer,
   DrawerContent,
@@ -15,7 +14,7 @@ import {
   usePlacePrediction,
   useTokenApproval,
 } from "@/hooks/use-vamos-contract";
-import { useMarket, transformOutcomeForUI } from "@/hooks/use-markets";
+import { useOutcome, transformOutcomeForUI } from "@/hooks/use-markets";
 import {
   LineChart,
   Line,
@@ -27,7 +26,6 @@ import {
 } from "recharts";
 import { parseUnits } from "viem";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
-import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { getFirstSentence } from "@/app/helpers/getFirstSentence";
 
@@ -58,15 +56,18 @@ export default function OptionDetails() {
     refetchAllowance,
   } = useTokenApproval();
 
-  // Fetch market data to get the outcome
-  const {
-    data: marketData,
-    isLoading: isLoadingMarket,
-    error: marketError,
-  } = useMarket(marketId);
+  // Construct outcome ID from market ID and option index
+  // Format: marketId-outcomeIndex (e.g., "1-0", "1-1")
+  const outcomeId = `${marketId}-${optionIndex}`;
 
-  // Get the specific outcome from the market data
-  const outcomeData = marketData?.outcomes.items[optionIndex];
+  // Fetch outcome data (showing all bets ordered by amount)
+  const {
+    data: outcomeData,
+    isLoading: isLoadingOutcome,
+    error: outcomeError,
+  } = useOutcome(outcomeId);
+
+  // Transform outcome data for UI
   const option = outcomeData ? transformOutcomeForUI(outcomeData) : null;
 
   // Get all unique addresses from bets for ENS resolution
@@ -257,7 +258,7 @@ export default function OptionDetails() {
     // TODO: Implement share logic
   };
 
-  if (!isMiniAppReady || isLoadingMarket) {
+  if (!isMiniAppReady || isLoadingOutcome) {
     return (
       <main className="flex-1">
         <section className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -272,11 +273,16 @@ export default function OptionDetails() {
     );
   }
 
-  if (!option) {
+  if (outcomeError || !option) {
     return (
       <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="max-w-2xl mx-auto px-4 py-8 text-center">
-          <p className="text-red-600 mb-4">{"Option not found"}</p>
+          <p className="text-red-600 mb-4">
+            {outcomeError ? "Error loading option" : "Option not found"}
+          </p>
+          {outcomeError && (
+            <p className="text-gray-600 mb-4">{outcomeError.message}</p>
+          )}
           <Button onClick={() => router.back()}>Go Back</Button>
         </div>
       </main>
@@ -402,7 +408,7 @@ export default function OptionDetails() {
 
                 <div className="flex-1">
                   <p className="font-semibold text-black">
-                    {formatAddressOrEns(bet.address)}
+                    {formatAddressOrEns(bet.address, ensNames?.[bet.address])}
                   </p>
                   <p className="text-lg font-bold text-black">${bet.amount}</p>
                 </div>
@@ -436,9 +442,9 @@ export default function OptionDetails() {
         <DrawerContent className="bg-[#FCFDF5] border-t-2 border-[#111909]">
           {!showConfirmation ? (
             <>
-              <DrawerHeader className="border-b-2 border-[#111909]">
-                <DrawerTitle className="text-black">Place bet</DrawerTitle>
-                <p className="text-2xl font-bold text-black mt-2">
+              <DrawerHeader className="border-b-2 border-[#111909] text-center">
+                <DrawerTitle className="text-black text-center">Place bet</DrawerTitle>
+                <p className="text-2xl font-bold text-black mt-2 text-center">
                   {option.name}
                 </p>
               </DrawerHeader>
@@ -477,25 +483,25 @@ export default function OptionDetails() {
                 <div className="flex items-center justify-center gap-3">
                   <button
                     onClick={() => setBetAmount(0)}
-                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                    className="flex-1 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
                   >
                     Reset
                   </button>
                   <button
                     onClick={() => handleQuickAdd(10)}
-                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                    className="flex-1 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
                   >
                     +$10
                   </button>
                   <button
                     onClick={() => handleQuickAdd(20)}
-                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                    className="flex-1 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
                   >
                     +$20
                   </button>
                   <button
                     onClick={() => handleQuickAdd(30)}
-                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                    className="flex-1 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
                   >
                     +$30
                   </button>
@@ -535,8 +541,12 @@ export default function OptionDetails() {
           ) : (
             <>
               <div className="flex flex-col items-center justify-center py-8 space-y-6 px-4">
-                <div className="w-40 h-40 rounded-full bg-gray-300 flex items-center justify-center">
-                  <div className="w-32 h-32 rounded-full bg-gray-400"></div>
+                <div className="w-40 h-40 rounded-full flex items-center justify-center border-2 border-[#111909]">
+                  <img
+                    src="/success-image.png"
+                    alt="Bet confirmation success"
+                    className="w-full h-full object-cover rounded-full"
+                  />
                 </div>
 
                 <div className="text-center">
