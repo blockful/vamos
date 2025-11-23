@@ -1,12 +1,14 @@
 "use client";
 import { useMiniApp } from "@/contexts/miniapp-context";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Share2,
   ChevronRight,
   ChevronLeft,
   PartyPopperIcon,
   DollarSign,
+  Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -41,13 +43,13 @@ export default function MarketDetails() {
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
   const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
-  
+
   // params.id is the composite ID in format "chainId-marketId" (e.g., "8453-0")
   const compositeMarketId = params.id as string;
-  
+
   // Extract the numeric marketId for contract calls
-  const marketId = parseInt(compositeMarketId.split('-')[1] || '0');
-  
+  const marketId = parseInt(compositeMarketId.split("-")[1] || "0");
+
   const { address, chain } = useAccount();
   const { toast } = useToast();
 
@@ -57,7 +59,7 @@ export default function MarketDetails() {
     isLoading,
     error,
     refetch,
-  } = useMarket(compositeMarketId || "");
+  } = useMarket(marketId.toString(), address);
 
   // Pause market hook
   const {
@@ -80,7 +82,9 @@ export default function MarketDetails() {
   // Get token decimals for the current chain
   const { decimals } = useTokenDecimals(chain?.id);
 
-  const market = apiMarket ? transformMarketForDetailsUI(apiMarket, decimals ?? 18) : null;
+  const market = apiMarket
+    ? transformMarketForDetailsUI(apiMarket, decimals ?? 18)
+    : null;
 
   // Color palette for multiple options
   const getOptionColor = (index: number) => {
@@ -388,6 +392,15 @@ export default function MarketDetails() {
             </Button>
           )}
           <Button
+            onClick={() => {
+              const url = window.location.href;
+              navigator.clipboard.writeText(url).then(() => {
+                toast({
+                  title: "Link Copied! 🔗",
+                  description: "Market link copied to clipboard",
+                });
+              });
+            }}
             className="gap-2 bg-gray-200 hover:bg-gray-300 w-full text-black font-medium rounded-full border-2 border-[#111909]"
             style={{ boxShadow: "2px 2px 0px #111909" }}
           >
@@ -503,7 +516,9 @@ export default function MarketDetails() {
               <button
                 key={index}
                 disabled={market.status !== "OPEN"}
-                onClick={() => router.push(`/markets/${compositeMarketId}/${index}`)}
+                onClick={() =>
+                  router.push(`/markets/${compositeMarketId}/${index}`)
+                }
                 className={`w-full rounded-2xl overflow-hidden relative h-auto transition-all hover:shadow-lg active:scale-95 bg-white`}
               >
                 {/* Colored background bar based on percentage */}
@@ -522,7 +537,7 @@ export default function MarketDetails() {
                       <p className="text-lg text-left font-semibold text-black mb-2">
                         {option.name}
                       </p>
-                      {isWinner && <span className="text-2xl">🏆</span>}
+                      {isWinner && <span className="text-base -mt-2">🏆</span>}
                     </div>
                     <div className="flex gap-8">
                       <div>
@@ -542,11 +557,28 @@ export default function MarketDetails() {
                     </div>
                   </div>
 
-                  {/* Chevron button */}
-                  {market.status === "OPEN" && (
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-black flex-shrink-0 ml-4">
-                      <ChevronRight className="h-5 w-5 text-black" />
+                  {/* Winner Capi Image or Chevron button */}
+                  {isWinner ? (
+                    <div
+                      className="flex items-center justify-center flex-shrink-0 ml-4 absolute right-4"
+                      style={{
+                        animation: "crown-pulse 1s ease infinite",
+                      }}
+                    >
+                      <Image
+                        src="/capi-victory.svg"
+                        alt="Victory"
+                        width={100}
+                        height={100}
+                        className="w-36 h-36"
+                      />
                     </div>
+                  ) : (
+                    market.status === "OPEN" && (
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-black flex-shrink-0 ml-4">
+                        <ChevronRight className="h-5 w-5 text-black" />
+                      </div>
+                    )
                   )}
                 </div>
               </button>
@@ -643,17 +675,16 @@ export default function MarketDetails() {
                   key={index}
                   onClick={() => setSelectedWinner(index)}
                   disabled={isResolvePending || isResolveConfirming}
-                  style={{ boxShadow: "2px 2px 0px #111909" }}
-                  className={`w-full text-black font-medium rounded-full 
-           ${
-             selectedWinner === index
-               ? index === 0
-                 ? "bg-[#A4D18E] border-2 border-black"
-                 : "bg-[#fbbf24] border-2 border-black"
-               : index === 0
-               ? "bg-[#A4D18E] bg-opacity-50"
-               : "bg-[#fbbf24] bg-opacity-50"
-           } disabled:opacity-50`}
+                  style={{
+                    boxShadow: "2px 2px 0px #111909",
+                    backgroundColor:
+                      selectedWinner === index
+                        ? getColorForOption(option.name)
+                        : `${getColorForOption(option.name)}80`, // 80 = 50% opacity in hex
+                  }}
+                  className={`w-full text-black font-medium rounded-full hover:opacity-80 transition-opacity ${
+                    selectedWinner === index ? "border-2 border-black" : ""
+                  } disabled:opacity-50`}
                 >
                   {option.name}
                 </Button>
@@ -691,6 +722,21 @@ export default function MarketDetails() {
           </div>
         </DrawerContent>
       </Drawer>
+
+      {/* Animations */}
+      <style jsx>{`
+        @keyframes crown-pulse {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </main>
   );
 }

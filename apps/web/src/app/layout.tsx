@@ -5,6 +5,7 @@ import { Inter } from "next/font/google";
 import { Navbar } from "@/components/navbar";
 import Providers from "@/components/providers";
 import { Toaster } from "@/components/ui/toaster";
+import { ScrollToTop } from "@/components/scroll-to-top";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -52,8 +53,11 @@ export default function RootLayout({
       <body className={inter.className}>
         <div className="relative flex min-h-screen flex-col items-center">
           <Providers>
+            <ScrollToTop />
             <Navbar />
-            <main className="flex-1 pt-24 w-full max-w-[600px]">{children}</main>
+            <main className="flex-1 pt-24 w-full max-w-[600px]">
+              {children}
+            </main>
             <Toaster />
           </Providers>
         </div>

@@ -15,15 +15,6 @@ import {
   useTokenApproval,
 } from "@/hooks/use-vamos-contract";
 import { useOutcome, transformOutcomeForUI } from "@/hooks/use-markets";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { parseUnits } from "viem";
 import { useEnsNames, formatAddressOrEns } from "@/hooks/use-ens";
 import { useToast } from "@/hooks/use-toast";
@@ -37,13 +28,13 @@ export default function OptionDetails() {
   const router = useRouter();
   const { toast } = useToast();
   const { chain } = useAccount();
-  
+
   // params.id is the composite ID in format "chainId-marketId" (e.g., "8453-0")
   const compositeMarketId = params.id as string;
-  
+
   // Extract the numeric marketId for contract calls
-  const numericMarketId = parseInt(compositeMarketId.split('-')[1] || '0');
-  
+  const numericMarketId = parseInt(compositeMarketId.split("-")[1] || "0");
+
   const optionIndex = parseInt(params.option as string);
   const [betAmount, setBetAmount] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -51,7 +42,7 @@ export default function OptionDetails() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [needsApproval, setNeedsApproval] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   // Ref to prevent duplicate prediction placements after approval
   const isPlacingPredictionRef = useRef(false);
 
@@ -83,7 +74,9 @@ export default function OptionDetails() {
   const { decimals } = useTokenDecimals(chain?.id);
 
   // Transform outcome data for UI with correct decimals
-  const option = outcomeData ? transformOutcomeForUI(outcomeData, decimals ?? 18) : null;
+  const option = outcomeData
+    ? transformOutcomeForUI(outcomeData, decimals ?? 18)
+    : null;
 
   // Get all unique addresses from bets for ENS resolution
   const betAddresses = useMemo(() => {
@@ -135,12 +128,16 @@ export default function OptionDetails() {
 
   // Refetch allowance and proceed with prediction after approval
   useEffect(() => {
-    if (isApproveConfirmed && needsApproval && !isPlacingPredictionRef.current) {
+    if (
+      isApproveConfirmed &&
+      needsApproval &&
+      !isPlacingPredictionRef.current
+    ) {
       // After approval, wait a moment for the blockchain state to update, then refetch and place prediction
       const placePredictionAfterApproval = async () => {
         // Set ref to prevent duplicate calls
         isPlacingPredictionRef.current = true;
-        
+
         try {
           setIsProcessing(true);
           // Refetch allowance and wait for it
@@ -254,7 +251,11 @@ export default function OptionDetails() {
 
       // If already approved, place prediction
       setNeedsApproval(false);
-      await placePrediction(BigInt(numericMarketId), BigInt(optionIndex), amountInWei);
+      await placePrediction(
+        BigInt(numericMarketId),
+        BigInt(optionIndex),
+        amountInWei
+      );
     } catch (err) {
       console.error("Error placing prediction:", err);
       setNeedsApproval(false); // Reset state on error
@@ -278,7 +279,13 @@ export default function OptionDetails() {
   };
 
   const handleShare = () => {
-    // TODO: Implement share logic
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      toast({
+        title: "Link Copied! 🔗",
+        description: "Market link copied to clipboard",
+      });
+    });
   };
 
   if (!isMiniAppReady || isLoadingOutcome) {
@@ -466,7 +473,9 @@ export default function OptionDetails() {
           {!showConfirmation ? (
             <>
               <DrawerHeader className="border-b-2 border-[#111909] text-center">
-                <DrawerTitle className="text-black text-center">Place bet</DrawerTitle>
+                <DrawerTitle className="text-black text-center">
+                  Place bet
+                </DrawerTitle>
                 <p className="text-2xl font-bold text-black mt-2 text-center">
                   {option.name}
                 </p>
