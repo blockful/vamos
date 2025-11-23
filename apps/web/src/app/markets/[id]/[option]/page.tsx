@@ -328,13 +328,10 @@ export default function OptionDetails() {
 
   return (
     <main
-      className={`inset-0 z-50 w-full h-screen max-h-screen overflow-y-auto bg-[#111909] flex flex-col items-center px-2 ${
-        isExiting ? "animate-slide-out" : "animate-slide-in"
-      }`}
+      className={`fixed inset-0 z-50 w-full h-screen max-h-screen overflow-y-auto bg-[#FCFDF5] flex flex-col `}
     >
-      <div className="w-full max-w-[600px] flex flex-col h-full bg-[#FCFDF5]">
-        {/* Header - Fixed at top */}
-        <div className="sticky top-0 z-40 flex flex-col bg-[#FCFDF5] p-6 border-b-2 border-[#111909] flex-shrink-0">
+      {/* Header - Fixed at top */}
+      <div className="sticky top-0 z-40 flex flex-col bg-[#FCFDF5] p-6 border-b-2 border-[#111909] flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <Button
             variant="ghost"
@@ -363,8 +360,8 @@ export default function OptionDetails() {
         </div>
       </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 pb-32">
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto p-6 pb-32">
         {/* Chart */}
         {/* <div className="h-64">
           {option.chartData && option.chartData.length > 0 ? (
@@ -449,8 +446,8 @@ export default function OptionDetails() {
         </div>
       </div>
 
-        {/* Fixed Button at Bottom */}
-        <div className="flex-shrink-0 bg-[#FCFDF5] p-6 border-t-2 border-[#111909]">
+      {/* Fixed Button at Bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-[#FCFDF5] p-6 border-t-2 border-[#111909]">
         <Button
           onClick={() => setIsDrawerOpen(true)}
           className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-medium py-6 text-lg rounded-full border-2 border-[#111909]"
@@ -460,8 +457,8 @@ export default function OptionDetails() {
         </Button>
       </div>
 
-        {/* Place Bet Drawer */}
-        <Drawer
+      {/* Place Bet Drawer */}
+      <Drawer
         open={isDrawerOpen}
         onOpenChange={(open) => {
           setIsDrawerOpen(open);
@@ -609,7 +606,6 @@ export default function OptionDetails() {
           )}
         </DrawerContent>
       </Drawer>
-      </div>
     </main>
   );
 }
