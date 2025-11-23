@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /**
  * @title Vamos
@@ -14,6 +15,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract Vamos is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     // The only token supported by this contract
     IERC20 public immutable predictionToken;
@@ -79,6 +81,7 @@ contract Vamos is ReentrancyGuard, Ownable {
     mapping(uint256 => mapping(uint256 => uint256)) public outcomePools; // marketId => outcomeId => totalPredictions
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public userPredictions; // marketId => user => outcomeId => predictionAmount
     mapping(uint256 => mapping(address => bool)) public hasClaimed; // marketId => user => claimed
+    mapping(uint256 => mapping(uint256 => EnumerableSet.AddressSet)) private outcomePredictors; // marketId => outcomeId => set of predictors
 
     // Events
     /// @notice Emitted when a new prediction market is created
@@ -297,6 +300,9 @@ contract Vamos is ReentrancyGuard, Ownable {
         userPredictions[marketId][msg.sender][outcomeId] += amount;
         outcomePools[marketId][outcomeId] += amount;
         market.totalPool += amount;
+        
+        // Track user as a predictor for this outcome
+        outcomePredictors[marketId][outcomeId].add(msg.sender);
 
         emit PredictionPlaced(marketId, msg.sender, outcomeId, amount);
     }
@@ -353,62 +359,108 @@ contract Vamos is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Claim winnings for a resolved market
+     * @notice Claim your share from a resolved market (winnings or refund)
      * @param marketId ID of the market to claim from
      */
-    function claimWinnings(uint256 marketId) external nonReentrant {
+    function claim(uint256 marketId) external nonReentrant {
         Market storage market = markets[marketId];
 
         if (market.createdAt == 0) revert MarketNotFound();
         if (!market.resolved) revert MarketNotResolved();
-        if (market.noWinners) revert NotNoWinnerMarket();
         if (hasClaimed[marketId][msg.sender]) revert AlreadyClaimed();
 
-        uint256 userPrediction = userPredictions[marketId][msg.sender][market.winningOutcome];
-        if (userPrediction == 0) revert NoWinnings();
+        uint256 amountToClaim;
 
-        uint256 winningPool = outcomePools[marketId][market.winningOutcome];
-        
-        // Calculate proportional winnings from pool after fees
-        // userWinnings = (userPrediction / winningPool) * poolAfterFees
-        uint256 winnings = (userPrediction * market.poolAfterFees) / winningPool;
+        if (market.noWinners) {
+            // Refund: Calculate total predictions across all outcomes
+            for (uint256 i = 0; i < market.numOutcomes; i++) {
+                amountToClaim += userPredictions[marketId][msg.sender][i];
+            }
+            if (amountToClaim == 0) revert NoPredictions();
+            
+            // Mark as claimed and transfer
+            hasClaimed[marketId][msg.sender] = true;
+            predictionToken.safeTransfer(msg.sender, amountToClaim);
+            emit RefundClaimed(marketId, msg.sender, amountToClaim);
+        } else {
+            // Winnings: Calculate proportional share
+            uint256 userPrediction = userPredictions[marketId][msg.sender][market.winningOutcome];
+            if (userPrediction == 0) revert NoWinnings();
 
-        // Mark as claimed
-        hasClaimed[marketId][msg.sender] = true;
-
-        // Transfer winnings
-        predictionToken.safeTransfer(msg.sender, winnings);
-
-        emit WinningsClaimed(marketId, msg.sender, winnings);
+            uint256 winningPool = outcomePools[marketId][market.winningOutcome];
+            amountToClaim = (userPrediction * market.poolAfterFees) / winningPool;
+            
+            // Mark as claimed and transfer
+            hasClaimed[marketId][msg.sender] = true;
+            predictionToken.safeTransfer(msg.sender, amountToClaim);
+            emit WinningsClaimed(marketId, msg.sender, amountToClaim);
+        }
     }
     
+
     /**
-     * @notice Claim refund for a market with no winners
-     * @param marketId ID of the market to claim refund from
+     * @notice Distribute to all participants in a resolved market (winnings or refunds)
+     * @param marketId ID of the market to distribute from
+     * @return processed Number of users actually processed
      */
-    function claimRefund(uint256 marketId) external nonReentrant {
+    function distribute(uint256 marketId) external nonReentrant returns (uint256 processed) {
         Market storage market = markets[marketId];
 
         if (market.createdAt == 0) revert MarketNotFound();
         if (!market.resolved) revert MarketNotResolved();
-        if (!market.noWinners) revert NotNoWinnerMarket();
-        if (hasClaimed[marketId][msg.sender]) revert AlreadyClaimed();
 
-        // Calculate total predictions by this user across all outcomes
-        uint256 totalUserPredictions = 0;
-        for (uint256 i = 0; i < market.numOutcomes; i++) {
-            totalUserPredictions += userPredictions[marketId][msg.sender][i];
+        if (market.noWinners) {
+            // Distribute refunds - iterate through all outcomes
+            for (uint256 outcomeId = 0; outcomeId < market.numOutcomes; outcomeId++) {
+                EnumerableSet.AddressSet storage predictors = outcomePredictors[marketId][outcomeId];
+                uint256 numPredictors = predictors.length();
+                
+                for (uint256 i = 0; i < numPredictors; i++) {
+                    address user = predictors.at(i);
+                    
+                    // Skip if already claimed
+                    if (hasClaimed[marketId][user]) continue;
+                    
+                    // Calculate total predictions across all outcomes
+                    uint256 totalUserPredictions = 0;
+                    for (uint256 j = 0; j < market.numOutcomes; j++) {
+                        totalUserPredictions += userPredictions[marketId][user][j];
+                    }
+                    
+                    if (totalUserPredictions == 0) continue;
+                    
+                    // Mark as claimed and transfer
+                    hasClaimed[marketId][user] = true;
+                    predictionToken.safeTransfer(user, totalUserPredictions);
+                    emit RefundClaimed(marketId, user, totalUserPredictions);
+                    processed++;
+                }
+            }
+        } else {
+            // Distribute winnings to winners only
+            EnumerableSet.AddressSet storage winners = outcomePredictors[marketId][market.winningOutcome];
+            uint256 totalWinners = winners.length();
+            uint256 winningPool = outcomePools[marketId][market.winningOutcome];
+            
+            for (uint256 i = 0; i < totalWinners; i++) {
+                address user = winners.at(i);
+                
+                // Skip if already claimed
+                if (hasClaimed[marketId][user]) continue;
+                
+                uint256 userPrediction = userPredictions[marketId][user][market.winningOutcome];
+                if (userPrediction == 0) continue;
+                
+                // Calculate proportional winnings
+                uint256 winnings = (userPrediction * market.poolAfterFees) / winningPool;
+                
+                // Mark as claimed and transfer
+                hasClaimed[marketId][user] = true;
+                predictionToken.safeTransfer(user, winnings);
+                emit WinningsClaimed(marketId, user, winnings);
+                processed++;
+            }
         }
-        
-        if (totalUserPredictions == 0) revert NoPredictions();
-
-        // Mark as claimed
-        hasClaimed[marketId][msg.sender] = true;
-
-        // Transfer refund
-        predictionToken.safeTransfer(msg.sender, totalUserPredictions);
-
-        emit RefundClaimed(marketId, msg.sender, totalUserPredictions);
     }
 
     /**
