@@ -29,11 +29,12 @@ export default function OptionDetails() {
   const { toast } = useToast();
   const { chain } = useAccount();
 
-  // params.id is the composite ID in format "chainId-marketId" (e.g., "8453-0")
-  const compositeMarketId = params.id as string;
-
-  // Extract the numeric marketId for contract calls
-  const numericMarketId = parseInt(compositeMarketId.split("-")[1] || "0");
+  // Extract chainId and marketId from separate params
+  const chainId = parseInt(params.chainId as string);
+  const marketId = parseInt(params.marketId as string);
+  
+  // Composite ID for API calls (format: "chainId-marketId")
+  const compositeMarketId = `${chainId}-${marketId}`;
 
   const optionIndex = parseInt(params.option as string);
   const [betAmount, setBetAmount] = useState(0);
@@ -148,7 +149,7 @@ export default function OptionDetails() {
 
           // Now place the prediction
           await placePrediction(
-            BigInt(numericMarketId),
+            BigInt(marketId),
             BigInt(optionIndex),
             amountInWei
           );
@@ -174,7 +175,7 @@ export default function OptionDetails() {
     needsApproval,
     refetchAllowance,
     betAmount,
-    numericMarketId,
+    marketId,
     optionIndex,
     placePrediction,
     toast,
@@ -252,7 +253,7 @@ export default function OptionDetails() {
       // If already approved, place prediction
       setNeedsApproval(false);
       await placePrediction(
-        BigInt(numericMarketId),
+        BigInt(marketId),
         BigInt(optionIndex),
         amountInWei
       );
@@ -610,3 +611,4 @@ export default function OptionDetails() {
     </main>
   );
 }
+
