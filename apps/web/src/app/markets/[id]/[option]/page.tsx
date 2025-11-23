@@ -14,8 +14,9 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { useState, useEffect } from "react";
-import { usePlacePrediction } from "@/hooks/use-vamos-contract";
+import { usePlacePrediction, useTokenApproval } from "@/hooks/use-vamos-contract";
 import { useMarket, transformOutcomeForUI } from "@/hooks/use-markets";
+import { parseUnits } from "viem";
 
 export default function OptionDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -26,9 +27,20 @@ export default function OptionDetails() {
   const [betAmount, setBetAmount] = useState(30);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [needsApproval, setNeedsApproval] = useState(false);
 
   const { placePrediction, isPending, isConfirming, isConfirmed, error } =
     usePlacePrediction();
+
+  const {
+    currentAllowance,
+    approve,
+    isPending: isApprovePending,
+    isConfirming: isApproveConfirming,
+    isConfirmed: isApproveConfirmed,
+    error: approveError,
+    refetchAllowance,
+  } = useTokenApproval();
 
   // Fetch market data to get the outcome
   const {
@@ -46,6 +58,33 @@ export default function OptionDetails() {
       setShowConfirmation(true);
     }
   }, [isConfirmed]);
+
+  // Refetch allowance and proceed with prediction after approval
+  useEffect(() => {
+    if (isApproveConfirmed && needsApproval) {
+      // After approval, wait a moment for the blockchain state to update, then refetch and place prediction
+      const placePredictionAfterApproval = async () => {
+        try {
+          // Refetch allowance and wait for it
+          await refetchAllowance();
+          
+          const amountInWei = parseUnits(betAmount.toString(), 18);
+          setNeedsApproval(false);
+          
+          // Now place the prediction
+          await placePrediction(
+            BigInt(marketId),
+            BigInt(optionIndex),
+            amountInWei
+          );
+        } catch (err) {
+          console.error("Error placing prediction after approval:", err);
+          setNeedsApproval(false); // Reset state on error
+        }
+      };
+      placePredictionAfterApproval();
+    }
+  }, [isApproveConfirmed, needsApproval, refetchAllowance, betAmount, marketId, optionIndex, placePrediction]);
 
   const handleIncrement = () => setBetAmount((prev) => prev + 1);
   const handleDecrement = () => setBetAmount((prev) => Math.max(1, prev - 1));
@@ -81,13 +120,41 @@ export default function OptionDetails() {
     }
 
     try {
+      // Convert bet amount to token units (assuming 18 decimals for ERC20)
+      const amountInWei = parseUnits(betAmount.toString(), 18);
+
+      // If we're in approval flow, wait for it to complete
+      if (needsApproval && (isApprovePending || isApproveConfirming)) {
+        return;
+      }
+
+      // If approval was just confirmed, let the useEffect handle the prediction
+      if (needsApproval && isApproveConfirmed) {
+        return;
+      }
+
+      // Refetch the latest allowance before checking
+      const { data: latestAllowance } = await refetchAllowance();
+      const currentAllowanceValue = latestAllowance ?? currentAllowance;
+
+      // Check if approval is needed
+      if (currentAllowanceValue < amountInWei) {
+        setNeedsApproval(true);
+        await approve(amountInWei);
+        // Wait for approval confirmation before proceeding
+        return;
+      }
+
+      // If already approved, place prediction
+      setNeedsApproval(false);
       await placePrediction(
         BigInt(marketId),
         BigInt(optionIndex),
-        BigInt(betAmount)
+        amountInWei
       );
     } catch (err) {
       console.error("Error placing prediction:", err);
+      setNeedsApproval(false); // Reset state on error
     }
   };
 
@@ -356,12 +423,27 @@ export default function OptionDetails() {
                         onClick={handleConfirmBet}
                         className="w-full text-white font-bold py-6 text-lg rounded-2xl"
                         style={{ backgroundColor: "#A4D18E" }}
-                        disabled={isPending || isConfirming || betAmount < 1}
+                        disabled={
+                          isPending ||
+                          isConfirming ||
+                          isApprovePending ||
+                          isApproveConfirming ||
+                          betAmount < 1
+                        }
                       >
                         {isPending || isConfirming
-                          ? "Processing..."
+                          ? "Confirming Bet..."
+                          : isApprovePending || isApproveConfirming
+                          ? "Approving Tokens..."
+                          : needsApproval && !isApproveConfirmed
+                          ? "Approve Tokens"
                           : "Confirm bet"}
                       </Button>
+                      {approveError && (
+                        <p className="text-sm text-red-500 text-center mt-2">
+                          Approval Error: {approveError.message}
+                        </p>
+                      )}
                       {error && (
                         <p className="text-sm text-red-500 text-center mt-2">
                           Error: {error.message}
