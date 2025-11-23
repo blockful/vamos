@@ -55,6 +55,7 @@ const MARKETS_QUERY = `
   query Markets {
   marketss(orderBy: "createdAt", orderDirection: "desc") {
     items {
+      winningOutcome
       question
       status
       totalPool
@@ -146,6 +147,7 @@ export function useMarket(marketId: string) {
                 query Market($id: String!) {
                     markets(id: $id) {
                         id
+                        winningOutcome
                         judge
                         status
                         totalPool
@@ -270,6 +272,7 @@ export function transformMarketForUI(market: Market) {
             name: outcome.description,
             percentage,
             totalAmount: amount,
+            outcomeIndex: outcome.outcomeIndex,
         };
     });
 
@@ -286,12 +289,13 @@ export function transformMarketForUI(market: Market) {
     return {
         id: market.id,
         title: market.question,
-        status: market.status === "OPEN" ? "BETS OPEN" : "BETS CLOSED",
+        status: market.status,
         volume: totalPool,
         icon: "🎯", // You can customize this based on market type
         createdAt: market.createdAt,
         creator: market.creator,
         judge: market.judge,
+        winningOutcome: market.winningOutcome,
         timeAgo: market.createdAt ? formatTimeAgo(market.createdAt) : "Unknown",
         options: options.map((opt, index) => ({
             ...opt,
@@ -315,6 +319,7 @@ export function transformMarketForDetailsUI(market: Market) {
             name: outcome.description,
             percentage,
             totalAmount: amount,
+            outcomeIndex: outcome.outcomeIndex,
             bets: [], // Bets will need a separate query if needed
         };
     });
@@ -336,8 +341,9 @@ export function transformMarketForDetailsUI(market: Market) {
             : "Prediction Market",
         judge: market.judge || "TBD",
         icon: "🎯",
-        status: market.status === "OPEN" ? "Betting Open" : "Betting Closed",
+        status: market.status,
         totalVolume: totalPool,
+        winningOutcome: market.winningOutcome,
         options,
         chartData,
     };
