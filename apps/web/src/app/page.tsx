@@ -173,7 +173,7 @@ export default function Home() {
                   </div>
                 ) : isConnected ? (
                   <div className="flex items-center gap-2 justify-center">
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#A4D18E" }}></div>
                     <span>Connected</span>
                   </div>
                 ) : (

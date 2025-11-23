@@ -1,25 +1,35 @@
 "use client";
 
-import { LogOut, Wallet } from "lucide-react";
-import { useAccount, useDisconnect, useBalance } from "wagmi";
+import { LogOut } from "lucide-react";
+import { useAccount, useDisconnect, useBalance, useChainId } from "wagmi";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useMiniApp } from "@/contexts/miniapp-context";
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 
 export function Navbar() {
-  const { address, isConnected, chain } = useAccount();
+  const router = useRouter();
+  const { address } = useAccount();
   const { disconnect } = useDisconnect();
   const { context } = useMiniApp();
-  const router = useRouter();
-  // Get wallet balance for the current chain
-  const { data: balance, isLoading: isLoadingBalance } = useBalance({
+  const [isOpen, setIsOpen] = useState(false);
+  const chainId = useChainId();
+
+  const isConnected = true;
+
+  // Get wallet balance
+  const { data: balanceData, isLoading: isLoadingBalance } = useBalance({
     address: address,
-    chainId: chain?.id,
+    chainId: chainId,
   });
 
-  // Monitor connection status and redirect if disconnected
+  // Use actual balance data or fallback
+  const balance = balanceData || {
+    formatted: "0.00",
+    symbol: "ETH",
+  };
+
+  // Debug logs
   useEffect(() => {
     if (
       !isConnected &&
@@ -50,33 +60,8 @@ export function Navbar() {
   // Handle disconnect
   const handleDisconnect = async () => {
     try {
-      // Mark that we're intentionally disconnecting
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("walletDisconnected", "true");
-      }
-
-      // Force disconnect from all connectors
-      disconnect();
-
-      // Clear any persisted wallet state
-      if (typeof window !== "undefined") {
-        // Clear wagmi storage
-        localStorage.removeItem("wagmi.store");
-        localStorage.removeItem("wagmi.wallet");
-        localStorage.removeItem("wagmi.connected");
-
-        // Clear any other wallet-related storage
-        Object.keys(localStorage).forEach((key) => {
-          if (key.includes("wagmi") || key.includes("wallet")) {
-            localStorage.removeItem(key);
-          }
-        });
-      }
-
-      // Small delay to ensure state is cleared before redirect
-      setTimeout(() => {
-        router.push("/");
-      }, 100);
+      await disconnect();
+      setIsOpen(false);
     } catch (error) {
       console.error("Error disconnecting:", error);
       // Still try to redirect even if there's an error
@@ -84,75 +69,105 @@ export function Navbar() {
     }
   };
 
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen]);
+
   return (
-    <header className="sticky top-0 z-50 w-full bg-[#FEABEF] rounded-bl-2xl rounded-br-2xl">
-      <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4">
-        {/* Left side - Profile Picture */}
+    <header className="fixed top-2 left-2 right-2 z-50 bg-[#FEABEF] rounded-2xl mb-2">
+      <div className="flex h-20 items-center justify-between px-6">
+        {/* Left side - Logo */}
+        <button
+          onClick={() => router.push("/markets")}
+          className="flex items-center hover:opacity-80 transition-opacity cursor-pointer"
+        >
+          <Image
+            src="/logo.svg"
+            alt="VAMOS FUN"
+            width={120}
+            height={60}
+            className="h-10 w-auto"
+          />
+        </button>
+
+        {/* Right side - Avatar and Balance */}
         {isConnected && (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#111909]">
-              {pfpUrl ? (
-                <Image
-                  src={pfpUrl}
-                  alt="Profile"
-                  width={40}
-                  height={40}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-[#562B52] flex items-center justify-center">
-                  <span className="text-white text-sm font-semibold">
-                    {displayName.charAt(0).toUpperCase()}
-                  </span>
+          <div className="flex flex-row items-center gap-3 relative">
+            {/* Avatar with Dropdown */}
+            <div ref={dropdownRef} className="relative">
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-12 h-12 rounded-full border-2 border-[#111909] hover:opacity-80 transition-opacity cursor-pointer p-0"
+              >
+                <div className="w-full h-full rounded-full overflow-hidden">
+                  {pfpUrl ? (
+                    <Image
+                      src={pfpUrl}
+                      alt="Profile"
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-[#562B52] flex items-center justify-center">
+                      <span className="text-white text-lg font-semibold">
+                        {displayName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </button>
+
+              {/* Dropdown Menu */}
+              {isOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div className="px-4 py-3 border-b border-gray-200">
+                    <p className="text-sm font-medium text-gray-700">
+                      {displayName}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleDisconnect}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Logout</span>
+                  </button>
                 </div>
               )}
             </div>
-            <span className="font-medium text-sm text-foreground hidden sm:inline">
-              {displayName}
-            </span>
-          </div>
-        )}
 
-        {/* Right side - Wallet/Logout Icon */}
-        <div className="flex items-center gap-3">
-          {isConnected && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg">
-              <Wallet className="h-4 w-4 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">
+            {/* Balance */}
+            <div className="flex flex-col items-start">
+              <span className="text-xs font-medium text-[#111909]">
+                Your balance
+              </span>
+              <span className="text-lg font-bold text-[#111909]">
                 {isLoadingBalance
                   ? "..."
                   : balance
                   ? `${formatBalance(balance.formatted)} ${balance.symbol}`
-                  : "0.00"}
+                  : "0.00 ETH"}
               </span>
             </div>
-          )}
-
-          {isConnected ? (
-            <Button
-              variant="ghost"
-              onClick={handleDisconnect}
-              className="flex items-center gap-2"
-              title="Logout"
-            >
-              <LogOut className="h-5 w-5" />
-              <span className="text-sm font-medium hidden sm:inline">
-                Logout
-              </span>
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              className="flex items-center gap-2"
-              title="Connect Wallet"
-            >
-              <Wallet className="h-5 w-5" />
-              <span className="text-sm font-medium hidden sm:inline">
-                Connect
-              </span>
-            </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </header>
   );
