@@ -661,17 +661,16 @@ export default function MarketDetails() {
                   key={index}
                   onClick={() => setSelectedWinner(index)}
                   disabled={isResolvePending || isResolveConfirming}
-                  style={{ boxShadow: "2px 2px 0px #111909" }}
-                  className={`w-full text-black font-medium rounded-full 
-           ${
-             selectedWinner === index
-               ? index === 0
-                 ? "bg-[#A4D18E] border-2 border-black"
-                 : "bg-[#fbbf24] border-2 border-black"
-               : index === 0
-               ? "bg-[#A4D18E] bg-opacity-50"
-               : "bg-[#fbbf24] bg-opacity-50"
-           } disabled:opacity-50`}
+                  style={{
+                    boxShadow: "2px 2px 0px #111909",
+                    backgroundColor:
+                      selectedWinner === index
+                        ? getColorForOption(option.name)
+                        : `${getColorForOption(option.name)}80`, // 80 = 50% opacity in hex
+                  }}
+                  className={`w-full text-black font-medium rounded-full hover:opacity-80 transition-opacity ${
+                    selectedWinner === index ? "border-2 border-black" : ""
+                  } disabled:opacity-50`}
                 >
                   {option.name}
                 </Button>
