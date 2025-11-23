@@ -371,6 +371,8 @@ export function transformMarketForUI(market: Market, decimals: number = 18) {
 
     return {
         id: market.id,
+        marketId: market.marketId,
+        chainId: market.chainId,
         title: market.question,
         status: market.status,
         volume: totalPool,

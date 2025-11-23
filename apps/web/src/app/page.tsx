@@ -215,7 +215,7 @@ export default function Home() {
                 className={`rounded-2xl p-5 hover:shadow-lg transition-all cursor-pointer active:scale-95 ${
                   market.status === "OPEN" ? "bg-[#FCFDF5]" : "bg-gray-100"
                 }`}
-                onClick={() => router.push(`/markets/${market.id}`)}
+                onClick={() => router.push(`/markets/${market.chainId}/${market.marketId}`)}
               >
                 {/* Header */}
                 <div className="flex items-start justify-between">

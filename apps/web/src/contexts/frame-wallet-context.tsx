@@ -5,11 +5,25 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactNode } from "react";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { celo, base, mainnet } from "wagmi/chains";
-import { injected } from "wagmi/connectors";
+import { injected, walletConnect } from "wagmi/connectors";
+import { env } from "@/lib/env";
 
 const config = createConfig({
   chains: [base, celo, mainnet],
-  connectors: [farcasterMiniApp(), injected()],
+  connectors: [
+    farcasterMiniApp(),
+    walletConnect({
+      projectId: env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
+      metadata: {
+        name: "Vamos",
+        description: "Prediction market platform",
+        url: typeof window !== "undefined" ? window.location.origin : "https://vamos.app",
+        icons: [typeof window !== "undefined" ? `${window.location.origin}/icon.png` : "https://vamos.app/icon.png"],
+      },
+      showQrModal: true,
+    }),
+    injected(),
+  ],
   transports: {
     [base.id]: http(),
     [celo.id]: http(),

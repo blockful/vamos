@@ -43,6 +43,7 @@ export function useWalletConnect() {
   // Get display name for connector
   const getConnectorName = (connector: Connector) => {
     if (connector.id === "farcaster") return "Farcaster Wallet";
+    if (connector.id === "walletConnect") return "WalletConnect";
     if (connector.id === "injected") {
       // Try to detect which injected wallet
       if (typeof window !== "undefined") {
@@ -50,6 +51,7 @@ export function useWalletConnect() {
         if ((window as any).ethereum?.isCoinbaseWallet)
           return "Coinbase Wallet";
         if ((window as any).ethereum?.isRabby) return "Rabby Wallet";
+        if ((window as any).ethereum?.isPhantom) return "Phantom";
       }
       return "Browser Wallet";
     }
@@ -59,10 +61,13 @@ export function useWalletConnect() {
   // Get icon for connector
   const getConnectorIcon = (connector: Connector) => {
     if (connector.id === "farcaster") return "🟣";
+    if (connector.id === "walletConnect") return "🔗";
     if (connector.id === "injected") {
       if (typeof window !== "undefined") {
         if ((window as any).ethereum?.isMetaMask) return "🦊";
         if ((window as any).ethereum?.isCoinbaseWallet) return "💙";
+        if ((window as any).ethereum?.isRabby) return "🐰";
+        if ((window as any).ethereum?.isPhantom) return "👻";
       }
       return "💳";
     }

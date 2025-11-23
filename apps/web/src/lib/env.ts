@@ -15,6 +15,7 @@ export const env = createEnv({
     NEXT_PUBLIC_FARCASTER_HEADER: z.string().min(1).optional().default("build-time-placeholder"),
     NEXT_PUBLIC_FARCASTER_PAYLOAD: z.string().min(1).optional().default("build-time-placeholder"),
     NEXT_PUBLIC_FARCASTER_SIGNATURE: z.string().min(1).optional().default("build-time-placeholder"),
+    NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: z.string().min(1).optional().default(""),
     // Network-specific contract addresses
     NEXT_PUBLIC_VAMOS_ADDRESS_CELO: z.string().min(1).optional(),
     NEXT_PUBLIC_TOKEN_ADDRESS_CELO: z.string().min(1).optional(),
@@ -28,6 +29,7 @@ export const env = createEnv({
     NEXT_PUBLIC_FARCASTER_HEADER: process.env.NEXT_PUBLIC_FARCASTER_HEADER,
     NEXT_PUBLIC_FARCASTER_PAYLOAD: process.env.NEXT_PUBLIC_FARCASTER_PAYLOAD,
     NEXT_PUBLIC_FARCASTER_SIGNATURE: process.env.NEXT_PUBLIC_FARCASTER_SIGNATURE,
+    NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
     NEXT_PUBLIC_VAMOS_ADDRESS_CELO: process.env.NEXT_PUBLIC_VAMOS_ADDRESS_CELO,
     NEXT_PUBLIC_TOKEN_ADDRESS_CELO: process.env.NEXT_PUBLIC_TOKEN_ADDRESS_CELO,
     NEXT_PUBLIC_VAMOS_ADDRESS_BASE: process.env.NEXT_PUBLIC_VAMOS_ADDRESS_BASE,
