@@ -47,10 +47,12 @@ export default function Home() {
 
   // Redirect to markets when connected
   useEffect(() => {
-    if (isConnected) {
+    // Only redirect if we have a valid connection with an address
+    // and we're not currently connecting
+    if (isConnected && address && !isConnecting && isMiniAppReady) {
       router.push("/markets");
     }
-  }, [isConnected, router]);
+  }, [isConnected, address, isConnecting, isMiniAppReady, router]);
 
   // Extract user data from context
   const user = context?.user;
@@ -71,10 +73,9 @@ export default function Home() {
 
       // If Farcaster connector, request wallet access first
       if (connector.id === "farcaster") {
-        const result = await sdk.wallet.ethProvider.request({
+        await sdk.wallet.ethProvider.request({
           method: "eth_requestAccounts",
         });
-        console.log("Farcaster wallet access granted:", result);
       }
 
       // Connect with selected connector
@@ -173,7 +174,10 @@ export default function Home() {
                   </div>
                 ) : isConnected ? (
                   <div className="flex items-center gap-2 justify-center">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#A4D18E" }}></div>
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: "#A4D18E" }}
+                    ></div>
                     <span>Connected</span>
                   </div>
                 ) : (

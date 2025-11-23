@@ -9,13 +9,14 @@ import { useEffect, useState, useRef } from "react";
 
 export function Navbar() {
   const router = useRouter();
-  const { address } = useAccount();
+  const { address, isConnected: wagmiIsConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { context } = useMiniApp();
   const [isOpen, setIsOpen] = useState(false);
   const chainId = useChainId();
 
-  const isConnected = true;
+  // Only consider connected if we have a valid address
+  const isConnected = wagmiIsConnected && !!address;
 
   // Get wallet balance
   const { data: balanceData, isLoading: isLoadingBalance } = useBalance({
