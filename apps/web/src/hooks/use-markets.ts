@@ -323,6 +323,7 @@ export function transformOutcomeForUI(outcome: Outcome) {
         address: `${bet.user.slice(0, 6)}...${bet.user.slice(-4)}`,
         amount: parseFloat(bet.amount),
         timestamp: bet.lastUpdated * 1000, // Convert to milliseconds
+        avatar: null, // Avatar is not available from API, will fallback to /avatar.png
     })) || [];
 
     // Generate simple chart data (can be enhanced with real historical data later)

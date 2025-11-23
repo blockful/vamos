@@ -7,15 +7,21 @@ import { Input } from "@/components/ui/input";
 import {
   Drawer,
   DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
   DrawerHeader,
   DrawerTitle,
-  DrawerTrigger,
 } from "@/components/ui/drawer";
 import { useState, useEffect } from "react";
 import { usePlacePrediction } from "@/hooks/use-vamos-contract";
 import { useMarket, transformOutcomeForUI } from "@/hooks/use-markets";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function OptionDetails() {
   const { isMiniAppReady } = useMiniApp();
@@ -23,9 +29,10 @@ export default function OptionDetails() {
   const router = useRouter();
   const marketId = params.id as string;
   const optionIndex = parseInt(params.option as string);
-  const [betAmount, setBetAmount] = useState(30);
+  const [betAmount, setBetAmount] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(true);
+  const [isExiting, setIsExiting] = useState(false);
 
   const { placePrediction, isPending, isConfirming, isConfirmed, error } =
     usePlacePrediction();
@@ -132,284 +139,268 @@ export default function OptionDetails() {
     );
   }
 
-  return (
-    <main className="flex-1 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <section className="max-w-2xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-3xl shadow-xl p-6 space-y-6">
-          {/* Header with Back Button, Option Name, Amount, and Share */}
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3 flex-1">
-              {/* Back Button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.back()}
-                className="mt-1"
-              >
-                <ChevronLeft className="h-6 w-6" />
-              </Button>
+  const handleBack = () => {
+    setIsExiting(true);
+    setTimeout(() => {
+      router.back();
+    }, 600);
+  };
 
-              {/* Option Info */}
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-1">
-                  {option.name}
-                </h1>
-                <p className="text-2xl font-semibold text-gray-700">
-                  ${option.totalAmount}
+  return (
+    <main className={`fixed inset-0 z-50 w-full h-screen max-h-screen overflow-y-auto bg-[#FCFDF5] flex flex-col ${
+      isExiting ? 'animate-slide-out-to-right' : 'animate-slide-in-from-right'
+    }`}>
+      {/* Header - Fixed at top */}
+      <div className="sticky top-0 z-40 flex flex-col bg-[#FCFDF5] p-6 border-b-2 border-[#111909] flex-shrink-0">
+        <div className="flex items-center justify-between mb-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleBack}
+            className="text-[#111909]"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleShare}
+            className="text-[#111909]"
+          >
+            <Share2 className="h-6 w-6" />
+          </Button>
+        </div>
+
+        <div className="flex-1">
+          <h1 className="text-2xl font-semibold text-black">{option.name}</h1>
+          <p className="text-lg font-semibold text-black">${option.totalAmount}</p>
+        </div>
+      </div>
+
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto p-6 pb-32">
+        {/* Chart */}
+        <div className="h-64">
+          {option.chartData && option.chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={option.chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: "#111909" }}
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                  }}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fill: "#111909" }}
+                  tickFormatter={(value) => `${value}%`}
+                />
+                <Tooltip
+                  formatter={(value) => `${value}%`}
+                  contentStyle={{ backgroundColor: "#FCFDF5", border: "2px solid #111909" }}
+                  labelStyle={{ color: "#111909" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#A4D18E"
+                  dot={false}
+                  strokeWidth={3}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              No data available
+            </div>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div className="border-b-2 border-dashed border-gray-300 my-4"></div>
+
+        {/* Bets Section */}
+        <div>
+          <h2 className="text-lg font-semibold text-black mb-4">Bets</h2>
+          <div className="space-y-3">
+            {option.bets.map((bet, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 p-3 bg-[#FCFDF5] rounded-lg border-2 border-[#111909]"
+              >
+                <div className="w-12 h-12 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-[#111909]">
+                  {bet.avatar ? (
+                    <img
+                      src={bet.avatar}
+                      alt={bet.address}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src="/avatar.png"
+                      alt="default avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <p className="font-semibold text-black">{bet.address}</p>
+                  <p className="text-lg font-bold text-black">${bet.amount}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Fixed Button at Bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-[#FCFDF5] p-6 border-t-2 border-[#111909]">
+        <Button
+          onClick={() => setIsDrawerOpen(true)}
+          className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-semibold py-6 text-lg rounded-full border-2 border-[#111909]"
+          style={{ boxShadow: "2px 2px 0px #111909" }}
+        >
+          Place bet
+        </Button>
+      </div>
+
+      {/* Place Bet Drawer */}
+      <Drawer
+        open={isDrawerOpen}
+        onOpenChange={(open) => {
+          setIsDrawerOpen(open);
+          if (!open) {
+            setShowConfirmation(false);
+          }
+        }}
+      >
+        <DrawerContent className="bg-[#FCFDF5] border-t-2 border-[#111909]">
+          {!showConfirmation ? (
+            <>
+              <DrawerHeader className="border-b-2 border-[#111909]">
+                <DrawerTitle className="text-black">Place bet</DrawerTitle>
+                <p className="text-2xl font-bold text-black mt-2">{option.name}</p>
+              </DrawerHeader>
+
+              <div className="p-6 space-y-6 pb-32">
+                {/* Amount Controls */}
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={handleDecrement}
+                    className="w-14 h-14 flex-shrink-0 rounded-full flex items-center justify-center text-black bg-[#FEABEF] hover:bg-[#CC66BA] transition-colors border-2 border-[#111909]"
+                  >
+                    <Minus className="h-6 w-6" />
+                  </button>
+
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-4xl font-bold text-black">$</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={betAmount}
+                      onChange={handleInputChange}
+                      onBlur={handleInputBlur}
+                      className="w-24 text-4xl font-bold text-black text-center bg-transparent outline-none"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleIncrement}
+                    className="w-14 h-14 flex-shrink-0 rounded-full flex items-center justify-center text-black bg-[#FEABEF] hover:bg-[#CC66BA] transition-colors border-2 border-[#111909]"
+                  >
+                    <Plus className="h-6 w-6" />
+                  </button>
+                </div>
+
+                {/* Quick Add Buttons */}
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => setBetAmount(0)}
+                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => handleQuickAdd(10)}
+                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                  >
+                    +$10
+                  </button>
+                  <button
+                    onClick={() => handleQuickAdd(20)}
+                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                  >
+                    +$20
+                  </button>
+                  <button
+                    onClick={() => handleQuickAdd(30)}
+                    className="px-6 py-2 bg-white border-2 border-[#111909] rounded-lg font-medium text-black transition-colors"
+                  >
+                    +$30
+                  </button>
+                </div>
+
+                <p className="text-sm text-gray-600 text-center">
+                  *Once you confirm a bet you cannot undo it
                 </p>
               </div>
-            </div>
 
-            {/* Share Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex items-center gap-1 text-orange-500 hover:text-orange-600 flex-shrink-0"
-            >
-              <span className="text-sm font-medium">share</span>
-              <Share2 className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Chart - Only this option's line */}
-          <div className="bg-gray-100 rounded-2xl p-4 h-48 relative overflow-hidden">
-            <svg
-              className="w-full h-full"
-              viewBox="0 0 400 160"
-              preserveAspectRatio="none"
-            >
-              {/* Grid lines */}
-              <line
-                x1="0"
-                y1="40"
-                x2="400"
-                y2="40"
-                stroke="#e5e7eb"
-                strokeWidth="1"
-              />
-              <line
-                x1="0"
-                y1="80"
-                x2="400"
-                y2="80"
-                stroke="#e5e7eb"
-                strokeWidth="1"
-              />
-              <line
-                x1="0"
-                y1="120"
-                x2="400"
-                y2="120"
-                stroke="#e5e7eb"
-                strokeWidth="1"
-              />
-
-              {/* Option Line (Gray) */}
-              <polyline
-                fill="none"
-                stroke="#9ca3af"
-                strokeWidth="3"
-                points={option.chartData
-                  .map((point, index) => {
-                    const x = (index / (option.chartData.length - 1)) * 400;
-                    const y = 160 - (point.value / 100) * 160;
-                    return `${x},${y}`;
-                  })
-                  .join(" ")}
-              />
-            </svg>
-          </div>
-
-          {/* Bets Section */}
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Bets</h2>
-            <div className="space-y-3">
-              {option.bets.map((bet, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+              <div className="fixed bottom-0 left-0 right-0 bg-[#FCFDF5] p-6 border-t-2 border-[#111909]">
+                <Button
+                  onClick={handleConfirmBet}
+                  className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-semibold py-6 text-lg rounded-full border-2 border-[#111909]"
+                  style={{ boxShadow: "2px 2px 0px #111909" }}
+                  disabled={isPending || isConfirming || betAmount < 1}
                 >
-                  {/* Avatar */}
-                  <div className="w-12 h-12 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center">
-                    <span className="text-sm font-bold text-gray-600">
-                      {bet.user.charAt(0)}
-                    </span>
-                  </div>
-
-                  {/* User Info */}
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900">{bet.user}</p>
-                    <p className="text-xs text-gray-500">{bet.address}</p>
-                  </div>
-
-                  {/* Bet Amount */}
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-gray-900">
-                      ${bet.amount}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Place Bet Button */}
-          <Drawer
-            open={isDrawerOpen}
-            onOpenChange={(open) => {
-              setIsDrawerOpen(open);
-              if (!open) {
-                // Reset confirmation state when drawer closes
-                setShowConfirmation(false);
-              }
-            }}
-          >
-            <DrawerTrigger asChild>
-              <Button
-                className="w-full text-white font-bold py-6 text-lg rounded-2xl"
-                style={{ backgroundColor: "#A4D18E" }}
-              >
-                Place Bet
-              </Button>
-            </DrawerTrigger>
-            <DrawerContent>
-              <div className="mx-auto w-full max-w-sm">
-                {!showConfirmation ? (
-                  <>
-                    {/* Place Bet Form */}
-                    <DrawerHeader>
-                      <DrawerTitle className="text-left text-lg font-bold">
-                        Place bet
-                      </DrawerTitle>
-                      <DrawerDescription className="text-left text-2xl font-bold text-gray-900">
-                        {option.name}
-                      </DrawerDescription>
-                    </DrawerHeader>
-
-                    <div className="p-4 space-y-6">
-                      {/* Amount Controls */}
-                      <div className="flex items-center justify-center gap-4">
-                        {/* Decrement Button */}
-                        <button
-                          onClick={handleDecrement}
-                          className="w-14 h-14 flex-shrink-0 rounded-full flex items-center justify-center text-white transition-colors"
-                          style={{ backgroundColor: "#A4D18E" }}
-                        >
-                          <Minus className="h-6 w-6" />
-                        </button>
-
-                        {/* Amount Input */}
-                        <div className="relative min-w-[140px]">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-4xl font-bold text-gray-900 pointer-events-none z-10">
-                            $
-                          </span>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            value={betAmount}
-                            onChange={handleInputChange}
-                            onBlur={handleInputBlur}
-                            className="w-full text-4xl font-bold text-gray-900 text-center border-none shadow-none pl-9 h-auto py-2 focus-visible:ring-0"
-                          />
-                        </div>
-
-                        {/* Increment Button */}
-                        <button
-                          onClick={handleIncrement}
-                          className="w-14 h-14 flex-shrink-0 rounded-full flex items-center justify-center text-white transition-colors"
-                          style={{ backgroundColor: "#A4D18E" }}
-                        >
-                          <Plus className="h-6 w-6" />
-                        </button>
-                      </div>
-
-                      {/* Quick Add Buttons */}
-                      <div className="flex items-center justify-center gap-3">
-                        <button
-                          onClick={() => handleQuickAdd(10)}
-                          className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
-                        >
-                          +$10
-                        </button>
-                        <button
-                          onClick={() => handleQuickAdd(20)}
-                          className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
-                        >
-                          +$20
-                        </button>
-                        <button
-                          onClick={() => handleQuickAdd(30)}
-                          className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium text-gray-900 transition-colors"
-                        >
-                          +$30
-                        </button>
-                      </div>
-
-                      {/* Warning Text */}
-                      <p className="text-sm text-gray-600 text-center">
-                        *Once you confirm a bet you cannot undo it
-                      </p>
-                    </div>
-
-                    <DrawerFooter>
-                      <Button
-                        onClick={handleConfirmBet}
-                        className="w-full text-white font-bold py-6 text-lg rounded-2xl"
-                        style={{ backgroundColor: "#A4D18E" }}
-                        disabled={isPending || isConfirming || betAmount < 1}
-                      >
-                        {isPending || isConfirming
-                          ? "Processing..."
-                          : "Confirm bet"}
-                      </Button>
-                      {error && (
-                        <p className="text-sm text-red-500 text-center mt-2">
-                          Error: {error.message}
-                        </p>
-                      )}
-                    </DrawerFooter>
-                  </>
-                ) : (
-                  <>
-                    {/* Confirmation View */}
-                    <div className="flex flex-col items-center justify-center py-8 space-y-6 px-4">
-                      {/* Circular Image Placeholder */}
-                      <div className="w-40 h-40 rounded-full bg-gray-200 flex items-center justify-center">
-                        <div className="w-32 h-32 rounded-full bg-gray-300"></div>
-                      </div>
-
-                      {/* Confirmation Text */}
-                      <div className="text-center">
-                        <h2 className="text-2xl font-bold text-gray-900">
-                          I&apos;m rooting for {option.name}!
-                        </h2>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="w-full space-y-3">
-                        <Button
-                          onClick={handleShare}
-                          className="w-full text-white font-semibold py-6 text-lg rounded-lg"
-                          style={{ backgroundColor: "#A4D18E" }}
-                        >
-                          Share
-                        </Button>
-                        <Button
-                          onClick={handleCloseConfirmation}
-                          variant="secondary"
-                          className="w-full bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold py-6 text-lg rounded-lg"
-                        >
-                          Close
-                        </Button>
-                      </div>
-                    </div>
-                  </>
+                  {isPending || isConfirming ? "Processing..." : "Confirm bet"}
+                </Button>
+                {error && (
+                  <p className="text-sm text-red-500 text-center mt-2">
+                    Error: {error.message}
+                  </p>
                 )}
               </div>
-            </DrawerContent>
-          </Drawer>
-        </div>
-      </section>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col items-center justify-center py-8 space-y-6 px-4">
+                <div className="w-40 h-40 rounded-full bg-gray-300 flex items-center justify-center">
+                  <div className="w-32 h-32 rounded-full bg-gray-400"></div>
+                </div>
+
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold text-black">
+                    I&apos;m rooting for {option.name}!
+                  </h2>
+                </div>
+
+                <div className="w-full space-y-3 px-4">
+                  <Button
+                    onClick={handleShare}
+                    className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-semibold py-6 text-lg rounded-full border-2 border-[#111909]"
+                    style={{ boxShadow: "2px 2px 0px #111909" }}
+                  >
+                    Share
+                  </Button>
+                  <Button
+                    onClick={handleCloseConfirmation}
+                    className="w-full bg-white hover:bg-gray-50 text-black font-semibold py-6 text-lg rounded-full border-2 border-[#111909]"
+                    style={{ boxShadow: "2px 2px 0px #111909" }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DrawerContent>
+      </Drawer>
     </main>
   );
 }

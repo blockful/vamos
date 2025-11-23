@@ -149,8 +149,8 @@ export default function Markets() {
   return (
     <main className="flex-1 min-h-screen bg-[#111909]">
       {/* Markets List */}
-      <section className="px-4 pb-24">
-        <div className="max-w-2xl mx-auto space-y-4">
+      <section className="px-2 pb-24">
+        <div className="max-w-2xl mx-auto space-y-2">
           {markets.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-[#FCFDF5] text-lg mb-2">No markets yet</p>
@@ -251,26 +251,25 @@ export default function Markets() {
 
       {/* Create Market Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#FCFDF5]">
+        <DialogContent className="bg-[#FCFDF5] rounded-none sm:rounded-none">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-black">
+            <DialogTitle className="text-2xl text-left font-semibold text-black">
               Create bet
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={formik.handleSubmit} className="space-y-6 mt-6">
+          <form onSubmit={formik.handleSubmit} className="space-y-8 mt-6">
             {/* Title */}
             <div className="space-y-2">
-              <Label htmlFor="title" className="text-sm font-medium text-black">
+              <Label htmlFor="title" className="text-base font-medium text-black">
                 Title
               </Label>
               <Input
                 id="title"
                 name="title"
-                placeholder="Enter market title"
                 value={formik.values.title}
                 onChange={formik.handleChange}
-                className="w-full border-gray-300"
+                className="w-full !border-2 !border-[#111909]"
               />
             </div>
 
@@ -278,47 +277,44 @@ export default function Markets() {
             <div className="space-y-2">
               <Label
                 htmlFor="description"
-                className="text-sm font-medium text-black"
+                className="text-base font-medium text-black"
               >
                 Description
               </Label>
               <Textarea
                 id="description"
                 name="description"
-                placeholder="Enter market description"
                 value={formik.values.description}
                 onChange={formik.handleChange}
-                className="w-full min-h-[100px] border-gray-300"
+                className="w-full min-h-[100px] border-2 border-[#111909]"
               />
             </div>
 
             {/* Judge */}
             <div className="space-y-2">
-              <Label htmlFor="judge" className="text-sm font-medium text-black">
+              <Label htmlFor="judge" className="text-base font-medium text-black">
                 Judge
               </Label>
               <Input
                 id="judge"
                 name="judge"
-                placeholder="Enter judge name or address"
                 value={formik.values.judge}
                 onChange={formik.handleChange}
-                className="w-full border-gray-300"
+                className="w-full !border-2 !border-[#111909]"
               />
             </div>
 
             {/* Options - Dynamic */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Options</Label>
+                <Label className="text-base font-medium text-black">Options</Label>
                 <Button
                   type="button"
                   onClick={addOption}
-                  size="sm"
-                  variant="outline"
-                  className="text-xs"
+                  className="bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-semibold rounded-full border-2 border-[#111909]"
+                  style={{ boxShadow: "2px 2px 0px #111909" }}
                 >
-                  <Plus className="h-3 w-3 mr-1" />
+                  <Plus className="h-4 w-4 mr-1" />
                   Add Option
                 </Button>
               </div>
@@ -333,7 +329,7 @@ export default function Markets() {
                       newOptions[index] = e.target.value;
                       formik.setFieldValue("options", newOptions);
                     }}
-                    className="flex-1"
+                    className={`flex-1 !border-2 ${option.trim() === "" ? "!border-red-500" : "!border-[#111909]"}`}
                   />
                   {formik.values.options.length > 2 && (
                     <Button
@@ -351,17 +347,20 @@ export default function Markets() {
             </div>
 
             {/* Submit Button */}
-            <Button
-              type="submit"
-              disabled={isPending || isConfirming}
-              className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isPending
-                ? "Awaiting approval..."
-                : isConfirming
-                ? "Creating market..."
-                : "Create"}
-            </Button>
+            <div className="mt-3">
+              <Button
+                type="submit"
+                disabled={isPending || isConfirming}
+                className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-semibold py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed rounded-full border-2 border-[#111909]"
+                style={{ boxShadow: "2px 2px 0px #111909" }}
+              >
+                {isPending
+                  ? "Awaiting approval..."
+                  : isConfirming
+                  ? "Creating market..."
+                  : "Create"}
+              </Button>
+            </div>
 
             {/* Form validation error */}
             {formError && (
