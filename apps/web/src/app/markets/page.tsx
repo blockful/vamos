@@ -207,29 +207,25 @@ export default function Markets() {
               <div
                 key={market.id}
                 className={`rounded-2xl p-5 hover:shadow-lg transition-all cursor-pointer active:scale-95 ${
-                  market.status === "BETS OPEN" ? "bg-[#FCFDF5]" : "bg-gray-100"
+                  market.status === "OPEN" ? "bg-[#FCFDF5]" : "bg-gray-100"
                 }`}
                 onClick={() => router.push(`/markets/${market.id}`)}
               >
                 {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-2xl ${
-                      market.status === "BETS OPEN"
-                        ? "bg-[#FEABEF]"
-                        : "bg-gray-400"
-                    }`}
-                  >
+                <div className="flex items-start justify-between">
+                  <div className="w-12 h-12 rounded-full bg-[#FEABEF] flex items-center justify-center flex-shrink-0">
                     {market.icon}
                   </div>
-                  <div
+                  <span
                     className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-2 ${
-                      market.status === "BETS OPEN"
+                      market.status === "OPEN"
                         ? "bg-[#FEABEF] bg-opacity-40 text-[#CC66BA]"
+                        : market.status === "PAUSED"
+                        ? "bg-[#E3DAA2] bg-opacity-50 text-[#9A925C]"
                         : "bg-gray-300 text-gray-600"
                     }`}
                   >
-                    {market.status === "BETS OPEN" && (
+                    {market.status === "OPEN" && (
                       <div
                         className="w-2 h-2 rounded-full bg-[#CC66BA]"
                         style={{
@@ -238,10 +234,13 @@ export default function Markets() {
                         }}
                       />
                     )}
-                    {market.status}
-                  </div>
+                    {market.status === "OPEN"
+                      ? "BETS OPEN"
+                      : market.status === "PAUSED"
+                      ? "BETS LOCKED"
+                      : "FINISHED"}
+                  </span>
                 </div>
-
                 {/* Title and Volume */}
                 <div className="mb-4">
                   <h3 className="text-lg font-semibold text-black mb-1">
@@ -276,32 +275,55 @@ export default function Markets() {
                         )}
                       </span>
                     )}
+                    {market.status === "RESOLVED" &&
+                      market.winningOutcome !== undefined && (
+                        <span className="flex items-center gap-1">
+                          🏆 Winner:{" "}
+                          <span className="inline-flex items-center bg-[#A4D18E] text-black font-semibold px-2 py-0.5 rounded-full">
+                            {market.options.find(
+                              (opt) =>
+                                opt.outcomeIndex === market.winningOutcome
+                            )?.name || "Unknown"}
+                          </span>
+                        </span>
+                      )}
                   </div>
                 </div>
 
                 {/* Options - Bar Chart Style */}
                 <div className="space-y-2">
-                  {market.options.map((option, index) => (
-                    <div
-                      key={index}
-                      className="relative h-8 bg-gray-200 rounded-full overflow-hidden"
-                    >
+                  {market.options.map((option, index) => {
+                    const isWinner =
+                      market.status === "RESOLVED" &&
+                      market.winningOutcome !== undefined &&
+                      option.outcomeIndex === market.winningOutcome;
+
+                    return (
                       <div
-                        className={`h-full flex items-center px-3 transition-all duration-300 ${
-                          market.status === "BETS CLOSED" ? "opacity-70" : ""
-                        }`}
-                        style={{ width: `${option.percentage}%`, backgroundColor: option.color }}
-                      />
-                      <div className="absolute inset-0 flex items-center px-3 justify-between pointer-events-none">
-                        <span className="text-sm font-normal text-black">
-                          {option.name}
-                        </span>
-                        <span className="text-sm font-normal text-black">
-                          {option.percentage}%
-                        </span>
+                        key={index}
+                        className="relative h-8 bg-gray-200 rounded-full overflow-hidden"
+                      >
+                        <div
+                          className={`h-full flex items-center px-3 transition-all duration-300 ${
+                            market.status === "BETS CLOSED" ? "opacity-70" : ""
+                          }`}
+                          style={{
+                            width: `${option.percentage}%`,
+                            backgroundColor: option.color,
+                          }}
+                        />
+                        <div className="absolute inset-0 flex items-center px-3 justify-between pointer-events-none">
+                          <span className="text-sm font-normal text-black">
+                            {isWinner && <span className="text-base">🏆</span>}
+                            {option.name}
+                          </span>
+                          <span className="text-sm font-normal text-black">
+                            {option.percentage}%
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))
@@ -425,7 +447,7 @@ export default function Markets() {
                 <Button
                   type="button"
                   onClick={addOption}
-                  className="bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-semibold rounded-full border-2 border-[#111909]"
+                  className="bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-medium rounded-full border-2 border-[#111909]"
                   style={{ boxShadow: "2px 2px 0px #111909" }}
                 >
                   <Plus className="h-4 w-4 mr-1" />
@@ -469,7 +491,7 @@ export default function Markets() {
               <Button
                 type="submit"
                 disabled={isPending || isConfirming}
-                className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-semibold py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed rounded-full border-2 border-[#111909]"
+                className="w-full bg-[#FEABEF] hover:bg-[#CC66BA] text-black font-medium py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed rounded-full border-2 border-[#111909]"
                 style={{ boxShadow: "2px 2px 0px #111909" }}
               >
                 {isPending
