@@ -36,7 +36,13 @@ export default function OptionDetails() {
   const router = useRouter();
   const { toast } = useToast();
   const { chain } = useAccount();
-  const marketId = params.id as string;
+  
+  // params.id is the composite ID in format "chainId-marketId" (e.g., "8453-0")
+  const compositeMarketId = params.id as string;
+  
+  // Extract the numeric marketId for contract calls
+  const numericMarketId = parseInt(compositeMarketId.split('-')[1] || '0');
+  
   const optionIndex = parseInt(params.option as string);
   const [betAmount, setBetAmount] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -58,9 +64,9 @@ export default function OptionDetails() {
     refetchAllowance,
   } = useTokenApproval();
 
-  // Construct outcome ID with chainId for indexer query
-  // Format: chainId-marketId-outcomeIndex (e.g., "42220-1-0", "8453-1-1")
-  const outcomeId = chain?.id ? `${chain.id}-${marketId}-${optionIndex}` : undefined;
+  // Construct outcome ID for indexer query
+  // Format: chainId-marketId-outcomeIndex (e.g., "8453-0-0", "42220-1-1")
+  const outcomeId = `${compositeMarketId}-${optionIndex}`;
 
   // Fetch outcome data (showing all bets ordered by amount)
   const {
@@ -133,7 +139,7 @@ export default function OptionDetails() {
 
           // Now place the prediction
           await placePrediction(
-            BigInt(marketId),
+            BigInt(numericMarketId),
             BigInt(optionIndex),
             amountInWei
           );
@@ -157,7 +163,7 @@ export default function OptionDetails() {
     needsApproval,
     refetchAllowance,
     betAmount,
-    marketId,
+    numericMarketId,
     optionIndex,
     placePrediction,
     toast,
@@ -233,7 +239,7 @@ export default function OptionDetails() {
 
       // If already approved, place prediction
       setNeedsApproval(false);
-      await placePrediction(BigInt(marketId), BigInt(optionIndex), amountInWei);
+      await placePrediction(BigInt(numericMarketId), BigInt(optionIndex), amountInWei);
     } catch (err) {
       console.error("Error placing prediction:", err);
       setNeedsApproval(false); // Reset state on error

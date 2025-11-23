@@ -40,12 +40,15 @@ export default function MarketDetails() {
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
   const [selectedWinner, setSelectedWinner] = useState<number | null>(null);
-  const marketId = parseInt(params.id as string);
+  
+  // params.id is the composite ID in format "chainId-marketId" (e.g., "8453-0")
+  const compositeMarketId = params.id as string;
+  
+  // Extract the numeric marketId for contract calls
+  const marketId = parseInt(compositeMarketId.split('-')[1] || '0');
+  
   const { address, chain } = useAccount();
   const { toast } = useToast();
-
-  // Construct composite ID for indexer query
-  const compositeMarketId = chain?.id ? `${chain.id}-${marketId}` : undefined;
 
   // Fetch market data from API
   const {
@@ -496,7 +499,7 @@ export default function MarketDetails() {
               <button
                 key={index}
                 disabled={market.status !== "OPEN"}
-                onClick={() => router.push(`/markets/${marketId}/${index}`)}
+                onClick={() => router.push(`/markets/${compositeMarketId}/${index}`)}
                 className={`w-full rounded-2xl overflow-hidden relative h-auto transition-all hover:shadow-lg active:scale-95 bg-white`}
               >
                 {/* Colored background bar based on percentage */}
