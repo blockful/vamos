@@ -1,9 +1,8 @@
 "use client";
 
 import { MiniAppProvider } from "@/contexts/miniapp-context";
+import FrameWalletProvider from "@/contexts/frame-wallet-context";
 import dynamic from "next/dynamic";
-import { OnchainKitProvider } from "@coinbase/onchainkit";
-import { sepolia } from "wagmi/chains";
 
 const ErudaProvider = dynamic(
   () => import("../components/Eruda").then((c) => c.ErudaProvider),
@@ -13,12 +12,9 @@ const ErudaProvider = dynamic(
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ErudaProvider>
-      <OnchainKitProvider
-        apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
-        chain={sepolia}
-      >
+      <FrameWalletProvider>
         <MiniAppProvider addMiniAppOnLoad={true}>{children}</MiniAppProvider>
-      </OnchainKitProvider>
+      </FrameWalletProvider>
     </ErudaProvider>
   );
 }
