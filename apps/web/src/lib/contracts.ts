@@ -1,5 +1,5 @@
 import { Address } from "viem";
-import { celo, base } from "viem/chains";
+import { base } from "viem/chains";
 import { env } from "./env";
 
 export interface ContractAddresses {
@@ -16,12 +16,6 @@ export function getContractAddresses(chainId?: number): ContractAddresses | null
 
   // Network-specific addresses - only source of truth
   const addressMap: Record<number, ContractAddresses | null> = {
-    [celo.id]: env.NEXT_PUBLIC_VAMOS_ADDRESS_CELO && env.NEXT_PUBLIC_TOKEN_ADDRESS_CELO
-      ? {
-          vamos: env.NEXT_PUBLIC_VAMOS_ADDRESS_CELO as Address,
-          token: env.NEXT_PUBLIC_TOKEN_ADDRESS_CELO as Address,
-        }
-      : null,
     [base.id]: env.NEXT_PUBLIC_VAMOS_ADDRESS_BASE && env.NEXT_PUBLIC_TOKEN_ADDRESS_BASE
       ? {
           vamos: env.NEXT_PUBLIC_VAMOS_ADDRESS_BASE as Address,

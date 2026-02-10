@@ -19,8 +19,6 @@ export const env = createEnv({
     // Highlighted/pinned market (optional)
     NEXT_PUBLIC_HIGHLIGHTED_MARKET_ID: z.string().optional(),
     // Network-specific contract addresses
-    NEXT_PUBLIC_VAMOS_ADDRESS_CELO: z.string().min(1).optional(),
-    NEXT_PUBLIC_TOKEN_ADDRESS_CELO: z.string().min(1).optional(),
     NEXT_PUBLIC_VAMOS_ADDRESS_BASE: z.string().min(1).optional(),
     NEXT_PUBLIC_TOKEN_ADDRESS_BASE: z.string().min(1).optional(),
   },
@@ -33,8 +31,6 @@ export const env = createEnv({
     NEXT_PUBLIC_FARCASTER_SIGNATURE: process.env.NEXT_PUBLIC_FARCASTER_SIGNATURE,
     NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
     NEXT_PUBLIC_HIGHLIGHTED_MARKET_ID: process.env.NEXT_PUBLIC_HIGHLIGHTED_MARKET_ID,
-    NEXT_PUBLIC_VAMOS_ADDRESS_CELO: process.env.NEXT_PUBLIC_VAMOS_ADDRESS_CELO,
-    NEXT_PUBLIC_TOKEN_ADDRESS_CELO: process.env.NEXT_PUBLIC_TOKEN_ADDRESS_CELO,
     NEXT_PUBLIC_VAMOS_ADDRESS_BASE: process.env.NEXT_PUBLIC_VAMOS_ADDRESS_BASE,
     NEXT_PUBLIC_TOKEN_ADDRESS_BASE: process.env.NEXT_PUBLIC_TOKEN_ADDRESS_BASE,
   },

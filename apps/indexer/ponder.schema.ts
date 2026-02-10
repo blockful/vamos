@@ -4,7 +4,7 @@ import { MarketStatus } from "./src/constants";
 export const markets = onchainTable("markets", (t) => ({
   id: t.text().primaryKey(), // Composite: `${chainId}-${marketId}`
   marketId: t.text().notNull(), // Original marketId from contract
-  chainId: t.integer().notNull(), // Chain ID (42220 for Celo, 8453 for Base)
+  chainId: t.integer().notNull(), // Chain ID (8453 for Base)
   creator: t.hex().notNull(),
   judge: t.hex().notNull(),
   question: t.text().notNull(),
@@ -53,3 +53,31 @@ export const betsRelations = relations(bets, ({ one }) => ({
   market: one(markets, { fields: [bets.marketId], references: [markets.id] }),
   outcome: one(outcomes, { fields: [bets.outcomeId], references: [outcomes.id] }),
 }));
+
+export const outcomeHistory = onchainTable("outcomes", (t) => ({
+  id: t.text().primaryKey(), // Composite: `${chainId}-${marketId}-${outcomeIndex}-${txHash}-${eventIndex}`
+  marketId: t.text().notNull(), // Reference to markets.id
+  chainId: t.integer().notNull(), // Chain ID
+  outcomeIndex: t.integer().notNull(), // Index of the outcome (0, 1, 2, etc.)
+  bettedAmount: t.integer().notNull(), // Total amount betted on this outcome
+  winningProbability: t.integer().notNull(), // Probability of this option to win
+
+}));
+
+/** Todo
+ * 
+ * [Indexer]
+ * outcome history to track change on outcomes percentage
+ * 
+ * [SC]
+ * admin should also be able to resolve market
+ * define optional deadline for market
+ * admin and judge can revert bet, in case of manipulation
+ * 
+ * [FE] 
+ * enable see outcome betters when market paused/closed
+ * Winner color to be the color of the option. Also better to call it "Result"
+ * 
+ */
+// TODO
+// 

@@ -55,8 +55,8 @@ export async function getFarcasterManifest() {
       subtitle: "Vamos Predictable Market", // 30 characters, no emojis or special characters, short description under app name
       description: "Vamos Predictable Market", // 170 characters, no emojis or special characters, promotional message displayed on Mini App Page
       primaryCategory: "social",
-      tags: ["mini-app", "celo"], // up to 5 tags, filtering/search tags
-      tagline: "Built on Celo", // 30 characters, marketing tagline should be punchy and descriptive
+      tags: ["mini-app", "base"], // up to 5 tags, filtering/search tags
+      tagline: "Built on Base", // 30 characters, marketing tagline should be punchy and descriptive
       ogTitle: `${frameName}`, // 30 characters, app name + short tag, Title case, no emojis
       ogDescription: "Vamos Predictable Market", // 100 characters, summarize core benefits in 1-2 lines
       screenshotUrls: [

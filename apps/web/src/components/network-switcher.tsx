@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useAccount, useSwitchChain } from "wagmi";
-import { celo, base } from "viem/chains";
+import { base } from "viem/chains";
 import { ChevronDown } from "lucide-react";
 
 // Supported networks
@@ -12,12 +12,6 @@ const SUPPORTED_NETWORKS = [
     name: "Base",
     shortName: "Base",
     icon: "🔵", // You can replace with actual icon/image
-  },
-  {
-    id: celo.id,
-    name: "Celo",
-    shortName: "Celo",
-    icon: "🟢", // You can replace with actual icon/image
   },
 ];
 

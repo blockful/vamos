@@ -1,6 +1,6 @@
 # Vamos Indexer
 
-Ponder indexer for the Vamos prediction market contract. Tracks markets and bets across Base, Celo, and local Anvil networks.
+Ponder indexer for the Vamos prediction market contract. Tracks markets and bets across Base and local Anvil networks.
 
 ## Quick Start
 
@@ -17,14 +17,12 @@ export VAMOS_ADDRESS_ANVIL=0x5FbDB2315678afecb367f032d93F642f64180aa3
 pnpm dev:anvil
 ```
 
-### Production (Base & Celo)
+### Production (Base)
 
 ```bash
 # Set environment variables
 export VAMOS_ADDRESS_BASE=0x...
 export VAMOS_START_BLOCK_BASE=12345678
-export VAMOS_ADDRESS_CELO=0x...
-export VAMOS_START_BLOCK_CELO=12345678
 
 # Run indexer
 pnpm dev
@@ -40,11 +38,6 @@ pnpm dev
 - `VAMOS_ADDRESS_BASE` - Contract address (required)
 - `VAMOS_START_BLOCK_BASE` - Start block (required)
 - `PONDER_RPC_URL_BASE` - RPC URL (default: `https://mainnet.base.org`)
-
-**Celo:**
-- `VAMOS_ADDRESS_CELO` - Contract address (required)
-- `VAMOS_START_BLOCK_CELO` - Start block (required)
-- `PONDER_RPC_URL_CELO` - RPC URL (default: `https://forno.celo.org`)
 
 ## Schema
 
